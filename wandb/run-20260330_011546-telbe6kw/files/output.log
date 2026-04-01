@@ -1,0 +1,10 @@
+LINESEARCH!!!
+LINESEARCH LR: 0.001953125
+step 0: train loss 10.9889, val loss 10.9903
+iter 0: loss 10.9778, time 90341.88ms, mfu -100.00%
+iter 10: loss 8.8724, time 2937.26ms, mfu 22.92%
+iter 20: loss 7.1610, time 2934.49ms, mfu 22.92%
+iter 30: loss 7.0074, time 2942.07ms, mfu 22.92%
+iter 40: loss 6.9849, time 2947.55ms, mfu 22.91%
+iter 50: loss 6.8190, time 2956.69ms, mfu 22.90%
+iter 60: loss 6.4882, time 2960.23ms, mfu 22.88%

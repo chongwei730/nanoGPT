@@ -1,0 +1,68 @@
+LINESEARCH!!!
+LINESEARCH LR: 0.001953125
+step 0: train loss 10.9889, val loss 10.9903
+iter 0: loss 10.9778, time 84642.44ms, mfu -100.00%
+iter 10: loss 8.8724, time 2939.70ms, mfu 22.90%
+iter 20: loss 7.1610, time 2949.83ms, mfu 22.90%
+iter 30: loss 7.0067, time 2954.84ms, mfu 22.88%
+iter 40: loss 6.9567, time 2960.49ms, mfu 22.87%
+iter 50: loss 6.7685, time 2975.22ms, mfu 22.85%
+iter 60: loss 6.4710, time 2980.38ms, mfu 22.82%
+iter 70: loss 6.4048, time 2984.53ms, mfu 22.79%
+iter 80: loss 6.2150, time 2997.33ms, mfu 22.76%
+iter 90: loss 6.3154, time 2999.43ms, mfu 22.73%
+LINESEARCH!!!
+LINESEARCH LR: 0.001953125
+step 100: train loss 6.2105, val loss 6.2082
+saving checkpoint to /scratch.global/chen8596out
+iter 100: loss 6.1922, time 73068.01ms, mfu 20.55%
+iter 110: loss 6.0100, time 3009.14ms, mfu 20.73%
+iter 120: loss 6.2135, time 3001.00ms, mfu 20.90%
+iter 130: loss 6.0537, time 3006.10ms, mfu 21.05%
+iter 140: loss 5.9669, time 3004.86ms, mfu 21.19%
+iter 150: loss 5.9137, time 3007.66ms, mfu 21.31%
+iter 160: loss 5.8329, time 3008.60ms, mfu 21.41%
+iter 170: loss 5.9576, time 3013.41ms, mfu 21.51%
+iter 180: loss 5.7579, time 3016.34ms, mfu 21.59%
+iter 190: loss 5.6577, time 3019.24ms, mfu 21.66%
+step 200: train loss 5.6120, val loss 5.6375
+saving checkpoint to /scratch.global/chen8596out
+iter 200: loss 5.5651, time 25117.23ms, mfu 19.76%
+iter 210: loss 5.5374, time 3020.66ms, mfu 20.01%
+iter 220: loss 5.5350, time 2999.64ms, mfu 20.26%
+iter 230: loss 5.3963, time 2999.66ms, mfu 20.48%
+iter 240: loss 5.4128, time 3001.84ms, mfu 20.67%
+iter 250: loss 5.4589, time 3005.89ms, mfu 20.84%
+iter 260: loss 5.2139, time 3007.22ms, mfu 21.00%
+iter 270: loss 5.3179, time 3010.82ms, mfu 21.14%
+iter 280: loss 5.2771, time 3017.33ms, mfu 21.25%
+iter 290: loss 5.1529, time 3019.29ms, mfu 21.36%
+step 300: train loss 5.0965, val loss 5.0859
+saving checkpoint to /scratch.global/chen8596out
+iter 300: loss 5.0732, time 25205.33ms, mfu 19.49%
+iter 310: loss 5.0376, time 3022.67ms, mfu 19.77%
+iter 320: loss 4.7743, time 2982.72ms, mfu 20.05%
+iter 330: loss 4.9505, time 2998.53ms, mfu 20.29%
+iter 340: loss 4.9892, time 3001.41ms, mfu 20.50%
+iter 350: loss 5.0217, time 3003.59ms, mfu 20.69%
+iter 360: loss 4.8408, time 3008.57ms, mfu 20.86%
+iter 370: loss 4.7048, time 3009.93ms, mfu 21.01%
+iter 380: loss 4.5563, time 3016.77ms, mfu 21.14%
+iter 390: loss 4.8884, time 3020.96ms, mfu 21.26%
+step 400: train loss 4.6909, val loss 4.6940
+saving checkpoint to /scratch.global/chen8596out
+iter 400: loss 4.6961, time 25929.43ms, mfu 19.39%
+iter 410: loss 4.6291, time 3021.29ms, mfu 19.68%
+iter 420: loss 4.4629, time 3023.38ms, mfu 19.94%
+iter 430: loss 4.3582, time 3006.12ms, mfu 20.19%
+iter 440: loss 4.4283, time 3005.23ms, mfu 20.41%
+iter 450: loss 4.5127, time 3006.49ms, mfu 20.61%
+iter 460: loss 4.5295, time 3009.36ms, mfu 20.78%
+Traceback (most recent call last):
+  File "/users/9/chen8596/nanoGPT/train_linesearch.py", line 359, in <module>
+    lossf = loss.item() * gradient_accumulation_steps
+KeyboardInterrupt
+[rank0]: Traceback (most recent call last):
+[rank0]:   File "/users/9/chen8596/nanoGPT/train_linesearch.py", line 359, in <module>
+[rank0]:     lossf = loss.item() * gradient_accumulation_steps
+[rank0]: KeyboardInterrupt

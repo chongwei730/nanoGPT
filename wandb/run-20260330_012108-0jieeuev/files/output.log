@@ -1,0 +1,1226 @@
+LINESEARCH!!!
+LINESEARCH LR: 0.00048828125
+step 0: train loss 10.9888, val loss 10.9902
+iter 0: loss 10.9776, time 91011.37ms, mfu -100.00%
+iter 10: loss 9.3704, time 2954.35ms, mfu 22.79%
+iter 20: loss 8.4554, time 2956.17ms, mfu 22.79%
+iter 30: loss 7.6689, time 2955.48ms, mfu 22.79%
+iter 40: loss 7.2762, time 2958.36ms, mfu 22.78%
+iter 50: loss 7.0336, time 2963.99ms, mfu 22.78%
+iter 60: loss 6.6176, time 2968.63ms, mfu 22.77%
+iter 70: loss 6.4554, time 2970.43ms, mfu 22.76%
+iter 80: loss 6.2850, time 2978.01ms, mfu 22.74%
+iter 90: loss 6.3059, time 2986.72ms, mfu 22.72%
+LINESEARCH!!!
+LINESEARCH LR: 0.00048828125
+step 100: train loss 6.2403, val loss 6.2424
+saving checkpoint to /scratch.global/chen8596out
+iter 100: loss 6.2083, time 79253.34ms, mfu 20.54%
+iter 110: loss 6.0184, time 2986.99ms, mfu 20.74%
+iter 120: loss 6.1825, time 2983.14ms, mfu 20.92%
+iter 130: loss 6.0478, time 2990.89ms, mfu 21.08%
+iter 140: loss 5.9706, time 2989.19ms, mfu 21.22%
+iter 150: loss 5.9434, time 2989.71ms, mfu 21.35%
+iter 160: loss 5.9247, time 2995.14ms, mfu 21.47%
+iter 170: loss 6.0043, time 3001.08ms, mfu 21.56%
+iter 180: loss 5.7870, time 2986.79ms, mfu 21.66%
+iter 190: loss 5.7142, time 2985.66ms, mfu 21.75%
+step 200: train loss 5.6709, val loss 5.6970
+saving checkpoint to /scratch.global/chen8596out
+iter 200: loss 5.6630, time 24813.36ms, mfu 19.85%
+iter 210: loss 5.5662, time 2980.21ms, mfu 20.12%
+iter 220: loss 5.5968, time 2980.49ms, mfu 20.37%
+iter 230: loss 5.4789, time 2982.15ms, mfu 20.59%
+iter 240: loss 5.4604, time 2981.73ms, mfu 20.79%
+iter 250: loss 5.5535, time 2988.96ms, mfu 20.96%
+iter 260: loss 5.2916, time 2993.39ms, mfu 21.11%
+iter 270: loss 5.4457, time 2997.45ms, mfu 21.25%
+iter 280: loss 5.4571, time 2991.34ms, mfu 21.38%
+iter 290: loss 5.3406, time 2986.84ms, mfu 21.49%
+step 300: train loss 5.2908, val loss 5.2834
+saving checkpoint to /scratch.global/chen8596out
+iter 300: loss 5.2557, time 24864.27ms, mfu 19.61%
+iter 310: loss 5.2401, time 2987.21ms, mfu 19.91%
+iter 320: loss 4.9862, time 2985.24ms, mfu 20.17%
+iter 330: loss 5.1960, time 2985.66ms, mfu 20.41%
+iter 340: loss 5.2391, time 2984.37ms, mfu 20.62%
+iter 350: loss 5.2437, time 2991.79ms, mfu 20.81%
+iter 360: loss 5.0888, time 2995.54ms, mfu 20.98%
+iter 370: loss 4.9236, time 2997.13ms, mfu 21.13%
+iter 380: loss 4.8589, time 3000.13ms, mfu 21.26%
+iter 390: loss 5.1590, time 3006.91ms, mfu 21.37%
+step 400: train loss 4.9475, val loss 4.9510
+saving checkpoint to /scratch.global/chen8596out
+iter 400: loss 4.9751, time 24889.81ms, mfu 19.51%
+iter 410: loss 4.9025, time 3003.63ms, mfu 19.80%
+iter 420: loss 4.6809, time 3001.20ms, mfu 20.06%
+iter 430: loss 4.6472, time 2998.13ms, mfu 20.30%
+iter 440: loss 4.7597, time 2997.85ms, mfu 20.52%
+iter 450: loss 4.7889, time 3002.13ms, mfu 20.71%
+iter 460: loss 4.8273, time 3004.75ms, mfu 20.88%
+iter 470: loss 4.6407, time 3005.46ms, mfu 21.03%
+iter 480: loss 4.8725, time 3009.35ms, mfu 21.16%
+iter 490: loss 4.7153, time 2994.19ms, mfu 21.30%
+step 500: train loss 4.6740, val loss 4.6817
+saving checkpoint to /scratch.global/chen8596out
+iter 500: loss 4.5755, time 24812.02ms, mfu 19.44%
+iter 510: loss 4.5808, time 2983.97ms, mfu 19.75%
+iter 520: loss 4.6974, time 2986.86ms, mfu 20.03%
+iter 530: loss 4.6521, time 2990.61ms, mfu 20.28%
+iter 540: loss 4.6158, time 2994.92ms, mfu 20.50%
+iter 550: loss 4.3789, time 2999.00ms, mfu 20.69%
+iter 560: loss 4.5297, time 3001.03ms, mfu 20.87%
+iter 570: loss 4.5150, time 3005.03ms, mfu 21.02%
+iter 580: loss 4.4671, time 3010.51ms, mfu 21.16%
+iter 590: loss 4.3975, time 2997.99ms, mfu 21.29%
+step 600: train loss 4.4089, val loss 4.4261
+saving checkpoint to /scratch.global/chen8596out
+iter 600: loss 4.5355, time 24760.58ms, mfu 19.43%
+iter 610: loss 4.5060, time 2982.79ms, mfu 19.74%
+iter 620: loss 4.0992, time 2982.36ms, mfu 20.03%
+iter 630: loss 4.4481, time 2982.40ms, mfu 20.28%
+iter 640: loss 4.3121, time 2987.96ms, mfu 20.51%
+iter 650: loss 4.3903, time 2994.18ms, mfu 20.71%
+iter 660: loss 4.2074, time 2998.60ms, mfu 20.88%
+iter 670: loss 4.4156, time 2995.34ms, mfu 21.04%
+iter 680: loss 4.3920, time 3000.23ms, mfu 21.18%
+iter 690: loss 4.3915, time 2997.21ms, mfu 21.31%
+step 700: train loss 4.2614, val loss 4.2672
+saving checkpoint to /scratch.global/chen8596out
+iter 700: loss 4.3334, time 24812.22ms, mfu 19.45%
+iter 710: loss 4.2174, time 2979.70ms, mfu 19.76%
+iter 720: loss 4.1371, time 2979.38ms, mfu 20.05%
+iter 730: loss 4.3044, time 2979.18ms, mfu 20.30%
+iter 740: loss 4.1734, time 2982.48ms, mfu 20.53%
+iter 750: loss 4.2847, time 2986.47ms, mfu 20.73%
+iter 760: loss 4.0684, time 2993.04ms, mfu 20.91%
+iter 770: loss 3.8735, time 2993.08ms, mfu 21.07%
+iter 780: loss 4.2553, time 3000.34ms, mfu 21.20%
+iter 790: loss 4.0390, time 3000.55ms, mfu 21.33%
+step 800: train loss 4.1390, val loss 4.1372
+saving checkpoint to /scratch.global/chen8596out
+iter 800: loss 4.2370, time 24922.55ms, mfu 19.46%
+iter 810: loss 4.4326, time 3001.93ms, mfu 19.76%
+iter 820: loss 4.0956, time 2997.42ms, mfu 20.03%
+iter 830: loss 4.0100, time 2996.86ms, mfu 20.27%
+iter 840: loss 4.0744, time 3002.19ms, mfu 20.49%
+iter 850: loss 4.0515, time 3000.89ms, mfu 20.68%
+iter 860: loss 4.1873, time 3004.13ms, mfu 20.86%
+iter 870: loss 4.1101, time 3006.86ms, mfu 21.01%
+iter 880: loss 4.0298, time 3008.25ms, mfu 21.15%
+iter 890: loss 4.0317, time 3013.17ms, mfu 21.27%
+step 900: train loss 4.0284, val loss 4.0323
+saving checkpoint to /scratch.global/chen8596out
+iter 900: loss 3.9301, time 25195.99ms, mfu 19.41%
+iter 910: loss 3.8184, time 2977.19ms, mfu 19.73%
+iter 920: loss 4.1055, time 2978.67ms, mfu 20.02%
+iter 930: loss 4.0665, time 2980.52ms, mfu 20.27%
+iter 940: loss 3.8742, time 2981.11ms, mfu 20.50%
+iter 950: loss 3.9134, time 2991.59ms, mfu 20.71%
+iter 960: loss 4.0552, time 2988.28ms, mfu 20.89%
+iter 970: loss 3.9024, time 2996.44ms, mfu 21.05%
+iter 980: loss 4.0794, time 2997.78ms, mfu 21.19%
+iter 990: loss 3.8674, time 3004.62ms, mfu 21.31%
+LINESEARCH!!!
+LINESEARCH LR: 0.00048828125
+step 1000: train loss 3.9647, val loss 3.9620
+saving checkpoint to /scratch.global/chen8596out
+iter 1000: loss 3.7931, time 44101.20ms, mfu 19.33%
+iter 1010: loss 3.9383, time 2982.57ms, mfu 19.66%
+iter 1020: loss 4.0756, time 2980.11ms, mfu 19.95%
+iter 1030: loss 4.1932, time 2982.30ms, mfu 20.21%
+iter 1040: loss 3.8399, time 2990.84ms, mfu 20.44%
+iter 1050: loss 3.8165, time 2993.25ms, mfu 20.65%
+iter 1060: loss 3.9423, time 2994.49ms, mfu 20.83%
+iter 1070: loss 4.0096, time 3000.04ms, mfu 20.99%
+iter 1080: loss 3.7189, time 3001.58ms, mfu 21.14%
+iter 1090: loss 3.9829, time 3002.79ms, mfu 21.26%
+step 1100: train loss 3.8945, val loss 3.9089
+saving checkpoint to /scratch.global/chen8596out
+iter 1100: loss 3.9626, time 24913.89ms, mfu 19.41%
+iter 1110: loss 3.8855, time 2982.30ms, mfu 19.73%
+iter 1120: loss 4.0956, time 2985.75ms, mfu 20.01%
+iter 1130: loss 3.7463, time 2987.52ms, mfu 20.26%
+iter 1140: loss 3.7622, time 2988.09ms, mfu 20.49%
+iter 1150: loss 3.8806, time 2990.84ms, mfu 20.69%
+iter 1160: loss 3.9488, time 2994.24ms, mfu 20.87%
+iter 1170: loss 3.8956, time 2999.85ms, mfu 21.03%
+iter 1180: loss 3.8116, time 3003.37ms, mfu 21.17%
+iter 1190: loss 3.7126, time 3004.87ms, mfu 21.29%
+step 1200: train loss 3.8376, val loss 3.8521
+saving checkpoint to /scratch.global/chen8596out
+iter 1200: loss 3.8299, time 24988.93ms, mfu 19.43%
+iter 1210: loss 3.7516, time 2999.24ms, mfu 19.73%
+iter 1220: loss 3.6007, time 2996.48ms, mfu 20.01%
+iter 1230: loss 3.8381, time 2996.23ms, mfu 20.25%
+iter 1240: loss 3.7744, time 3000.89ms, mfu 20.47%
+iter 1250: loss 3.7629, time 3003.99ms, mfu 20.67%
+iter 1260: loss 3.5805, time 3004.79ms, mfu 20.84%
+iter 1270: loss 3.8921, time 3005.77ms, mfu 21.00%
+iter 1280: loss 3.8955, time 3007.69ms, mfu 21.13%
+iter 1290: loss 3.8919, time 3015.30ms, mfu 21.25%
+step 1300: train loss 3.8114, val loss 3.8159
+saving checkpoint to /scratch.global/chen8596out
+iter 1300: loss 3.9694, time 25261.86ms, mfu 19.40%
+iter 1310: loss 3.9039, time 3003.19ms, mfu 19.70%
+iter 1320: loss 3.6418, time 2996.07ms, mfu 19.98%
+iter 1330: loss 3.6021, time 2997.14ms, mfu 20.22%
+iter 1340: loss 3.7592, time 3003.12ms, mfu 20.44%
+iter 1350: loss 3.7854, time 3001.98ms, mfu 20.64%
+iter 1360: loss 3.7408, time 3002.54ms, mfu 20.82%
+iter 1370: loss 3.7644, time 3004.53ms, mfu 20.98%
+iter 1380: loss 3.7996, time 3008.62ms, mfu 21.12%
+iter 1390: loss 3.9123, time 3011.87ms, mfu 21.24%
+step 1400: train loss 3.7529, val loss 3.7669
+saving checkpoint to /scratch.global/chen8596out
+iter 1400: loss 3.8150, time 25279.88ms, mfu 19.38%
+iter 1410: loss 3.8957, time 2992.70ms, mfu 19.70%
+iter 1420: loss 3.7375, time 2986.36ms, mfu 19.98%
+iter 1430: loss 3.8553, time 2989.99ms, mfu 20.23%
+iter 1440: loss 3.7263, time 2992.18ms, mfu 20.46%
+iter 1450: loss 3.8554, time 2993.39ms, mfu 20.66%
+iter 1460: loss 3.7534, time 2993.11ms, mfu 20.85%
+iter 1470: loss 3.7852, time 2999.46ms, mfu 21.01%
+iter 1480: loss 3.7638, time 3000.57ms, mfu 21.15%
+iter 1490: loss 3.5819, time 3007.07ms, mfu 21.27%
+step 1500: train loss 3.7253, val loss 3.7477
+saving checkpoint to /scratch.global/chen8596out
+iter 1500: loss 3.6195, time 25159.68ms, mfu 19.41%
+iter 1510: loss 3.6873, time 2993.32ms, mfu 19.72%
+iter 1520: loss 3.6845, time 2990.35ms, mfu 20.00%
+iter 1530: loss 3.6002, time 2993.10ms, mfu 20.25%
+iter 1540: loss 3.7760, time 2991.29ms, mfu 20.48%
+iter 1550: loss 3.6770, time 2996.13ms, mfu 20.68%
+iter 1560: loss 3.7553, time 2997.40ms, mfu 20.86%
+iter 1570: loss 3.7674, time 2999.86ms, mfu 21.01%
+iter 1580: loss 3.7654, time 3001.45ms, mfu 21.16%
+iter 1590: loss 3.7078, time 3009.30ms, mfu 21.28%
+step 1600: train loss 3.6895, val loss 3.7097
+saving checkpoint to /scratch.global/chen8596out
+iter 1600: loss 3.6677, time 25238.58ms, mfu 19.42%
+iter 1610: loss 3.6600, time 2994.37ms, mfu 19.72%
+iter 1620: loss 3.6450, time 2995.80ms, mfu 20.00%
+iter 1630: loss 3.7569, time 2991.00ms, mfu 20.25%
+iter 1640: loss 3.6908, time 2994.05ms, mfu 20.47%
+iter 1650: loss 3.5462, time 2995.42ms, mfu 20.67%
+iter 1660: loss 3.4595, time 2996.38ms, mfu 20.85%
+iter 1670: loss 3.7965, time 3000.35ms, mfu 21.01%
+iter 1680: loss 3.7075, time 3002.62ms, mfu 21.15%
+iter 1690: loss 3.5909, time 3004.01ms, mfu 21.28%
+step 1700: train loss 3.6742, val loss 3.6860
+saving checkpoint to /scratch.global/chen8596out
+iter 1700: loss 3.7395, time 25128.33ms, mfu 19.42%
+iter 1710: loss 3.5925, time 3005.56ms, mfu 19.72%
+iter 1720: loss 3.5688, time 3002.73ms, mfu 19.99%
+iter 1730: loss 3.6947, time 3001.98ms, mfu 20.23%
+iter 1740: loss 3.6290, time 3002.07ms, mfu 20.45%
+iter 1750: loss 3.6775, time 3004.66ms, mfu 20.65%
+iter 1760: loss 3.7652, time 3011.08ms, mfu 20.82%
+iter 1770: loss 3.5039, time 3013.34ms, mfu 20.97%
+iter 1780: loss 3.5462, time 3016.81ms, mfu 21.11%
+iter 1790: loss 3.8158, time 3017.92ms, mfu 21.23%
+step 1800: train loss 3.6626, val loss 3.6513
+saving checkpoint to /scratch.global/chen8596out
+iter 1800: loss 3.7229, time 25105.06ms, mfu 19.37%
+iter 1810: loss 3.5833, time 3008.30ms, mfu 19.67%
+iter 1820: loss 3.8824, time 2995.53ms, mfu 19.95%
+iter 1830: loss 3.6389, time 2988.16ms, mfu 20.21%
+iter 1840: loss 3.5820, time 2988.88ms, mfu 20.44%
+iter 1850: loss 3.7710, time 2988.98ms, mfu 20.65%
+iter 1860: loss 3.4922, time 2986.24ms, mfu 20.84%
+iter 1870: loss 3.6693, time 2991.35ms, mfu 21.01%
+iter 1880: loss 3.7148, time 2994.16ms, mfu 21.16%
+iter 1890: loss 3.5296, time 2995.60ms, mfu 21.29%
+step 1900: train loss 3.6363, val loss 3.6483
+saving checkpoint to /scratch.global/chen8596out
+iter 1900: loss 3.4910, time 24945.35ms, mfu 19.43%
+iter 1910: loss 3.5229, time 2995.62ms, mfu 19.73%
+iter 1920: loss 3.7910, time 2997.60ms, mfu 20.01%
+iter 1930: loss 3.6697, time 2999.16ms, mfu 20.25%
+iter 1940: loss 3.6035, time 3002.17ms, mfu 20.47%
+iter 1950: loss 3.5269, time 3009.08ms, mfu 20.66%
+iter 1960: loss 3.7633, time 3006.28ms, mfu 20.83%
+iter 1970: loss 3.6393, time 3005.81ms, mfu 20.99%
+iter 1980: loss 3.5040, time 3008.64ms, mfu 21.13%
+iter 1990: loss 3.6476, time 3016.37ms, mfu 21.25%
+LINESEARCH!!!
+LINESEARCH LR: 0.0009765625
+step 2000: train loss 3.5969, val loss 3.6250
+saving checkpoint to /scratch.global/chen8596out
+iter 2000: loss 3.6511, time 44162.63ms, mfu 19.28%
+iter 2010: loss 3.5579, time 3012.74ms, mfu 19.58%
+iter 2020: loss 3.5058, time 2994.49ms, mfu 19.87%
+iter 2030: loss 3.6608, time 2990.63ms, mfu 20.14%
+iter 2040: loss 3.6791, time 2985.96ms, mfu 20.38%
+iter 2050: loss 3.6717, time 2987.62ms, mfu 20.59%
+iter 2060: loss 3.7370, time 2988.82ms, mfu 20.79%
+iter 2070: loss 3.4055, time 2995.77ms, mfu 20.96%
+iter 2080: loss 3.4492, time 2991.19ms, mfu 21.11%
+iter 2090: loss 3.2957, time 2999.13ms, mfu 21.25%
+step 2100: train loss 3.5994, val loss 3.6194
+saving checkpoint to /scratch.global/chen8596out
+iter 2100: loss 3.5846, time 24940.29ms, mfu 19.39%
+iter 2110: loss 3.6177, time 3001.20ms, mfu 19.69%
+iter 2120: loss 3.6850, time 2996.12ms, mfu 19.97%
+iter 2130: loss 3.4847, time 2998.49ms, mfu 20.22%
+iter 2140: loss 3.4314, time 3000.19ms, mfu 20.44%
+iter 2150: loss 3.5331, time 2998.69ms, mfu 20.64%
+iter 2160: loss 3.5458, time 3000.17ms, mfu 20.82%
+iter 2170: loss 3.7495, time 3005.67ms, mfu 20.98%
+iter 2180: loss 3.4611, time 3008.59ms, mfu 21.12%
+iter 2190: loss 3.6378, time 3008.50ms, mfu 21.25%
+step 2200: train loss 3.5823, val loss 3.5995
+saving checkpoint to /scratch.global/chen8596out
+iter 2200: loss 3.6213, time 25395.90ms, mfu 19.39%
+iter 2210: loss 3.6484, time 3010.30ms, mfu 19.69%
+iter 2220: loss 3.4462, time 2998.07ms, mfu 19.96%
+iter 2230: loss 3.6095, time 2980.89ms, mfu 20.23%
+iter 2240: loss 3.6515, time 2980.32ms, mfu 20.46%
+iter 2250: loss 3.7651, time 2980.83ms, mfu 20.67%
+iter 2260: loss 3.3063, time 2980.06ms, mfu 20.87%
+iter 2270: loss 3.4141, time 2981.01ms, mfu 21.04%
+iter 2280: loss 3.4717, time 2986.77ms, mfu 21.19%
+iter 2290: loss 3.3795, time 2986.17ms, mfu 21.32%
+step 2300: train loss 3.5785, val loss 3.5993
+saving checkpoint to /scratch.global/chen8596out
+iter 2300: loss 3.7030, time 24852.59ms, mfu 19.46%
+iter 2310: loss 3.4640, time 2991.19ms, mfu 19.77%
+iter 2320: loss 3.5359, time 2987.20ms, mfu 20.04%
+iter 2330: loss 3.4574, time 2992.38ms, mfu 20.29%
+iter 2340: loss 3.6322, time 2987.94ms, mfu 20.51%
+iter 2350: loss 3.6636, time 2993.25ms, mfu 20.71%
+iter 2360: loss 3.4158, time 2997.46ms, mfu 20.89%
+iter 2370: loss 3.6202, time 2998.23ms, mfu 21.04%
+iter 2380: loss 3.5490, time 3005.72ms, mfu 21.18%
+iter 2390: loss 3.6766, time 3004.44ms, mfu 21.30%
+step 2400: train loss 3.5726, val loss 3.5959
+saving checkpoint to /scratch.global/chen8596out
+iter 2400: loss 3.3332, time 25109.94ms, mfu 19.44%
+iter 2410: loss 3.5252, time 3013.55ms, mfu 19.73%
+iter 2420: loss 3.5729, time 3008.78ms, mfu 20.00%
+iter 2430: loss 3.5135, time 2998.75ms, mfu 20.24%
+iter 2440: loss 3.4730, time 2992.83ms, mfu 20.47%
+iter 2450: loss 3.6231, time 2995.09ms, mfu 20.67%
+iter 2460: loss 3.5013, time 2998.31ms, mfu 20.85%
+iter 2470: loss 3.6268, time 2993.96ms, mfu 21.01%
+iter 2480: loss 3.6597, time 3001.34ms, mfu 21.15%
+iter 2490: loss 3.6493, time 3002.19ms, mfu 21.28%
+step 2500: train loss 3.5653, val loss 3.5840
+saving checkpoint to /scratch.global/chen8596out
+iter 2500: loss 3.6207, time 25309.11ms, mfu 19.42%
+iter 2510: loss 3.5555, time 3001.86ms, mfu 19.72%
+iter 2520: loss 3.4825, time 2999.22ms, mfu 19.99%
+iter 2530: loss 3.6511, time 2998.79ms, mfu 20.24%
+iter 2540: loss 3.6121, time 2994.74ms, mfu 20.46%
+iter 2550: loss 3.6142, time 2995.17ms, mfu 20.66%
+iter 2560: loss 3.5673, time 3003.66ms, mfu 20.84%
+iter 2570: loss 3.1354, time 3006.21ms, mfu 21.00%
+iter 2580: loss 3.5231, time 3013.44ms, mfu 21.13%
+iter 2590: loss 3.5677, time 3021.59ms, mfu 21.25%
+step 2600: train loss 3.5647, val loss 3.5642
+saving checkpoint to /scratch.global/chen8596out
+iter 2600: loss 3.6660, time 25090.95ms, mfu 19.39%
+iter 2610: loss 3.6292, time 3012.05ms, mfu 19.69%
+iter 2620: loss 3.7025, time 3012.53ms, mfu 19.95%
+iter 2630: loss 3.6177, time 3016.24ms, mfu 20.19%
+iter 2640: loss 3.4625, time 3007.32ms, mfu 20.41%
+iter 2650: loss 3.4732, time 3007.07ms, mfu 20.61%
+iter 2660: loss 3.3065, time 3009.24ms, mfu 20.78%
+iter 2670: loss 3.5047, time 3007.34ms, mfu 20.94%
+iter 2680: loss 3.1892, time 3015.89ms, mfu 21.08%
+iter 2690: loss 3.5820, time 3021.66ms, mfu 21.20%
+step 2700: train loss 3.5547, val loss 3.5615
+saving checkpoint to /scratch.global/chen8596out
+iter 2700: loss 3.7285, time 25160.82ms, mfu 19.35%
+iter 2710: loss 3.4105, time 3009.14ms, mfu 19.65%
+iter 2720: loss 3.5162, time 3010.74ms, mfu 19.92%
+iter 2730: loss 3.3650, time 3009.30ms, mfu 20.17%
+iter 2740: loss 3.5989, time 3009.02ms, mfu 20.39%
+iter 2750: loss 3.5713, time 3012.70ms, mfu 20.59%
+iter 2760: loss 3.6411, time 3013.91ms, mfu 20.76%
+iter 2770: loss 3.5710, time 3015.01ms, mfu 20.92%
+iter 2780: loss 3.4429, time 3017.87ms, mfu 21.06%
+iter 2790: loss 3.4395, time 3019.80ms, mfu 21.18%
+step 2800: train loss 3.5570, val loss 3.5644
+saving checkpoint to /scratch.global/chen8596out
+iter 2800: loss 3.7108, time 25200.20ms, mfu 19.33%
+iter 2810: loss 3.5750, time 3009.37ms, mfu 19.63%
+iter 2820: loss 3.6866, time 3007.17ms, mfu 19.91%
+iter 2830: loss 3.6499, time 3007.92ms, mfu 20.16%
+iter 2840: loss 3.6161, time 3011.24ms, mfu 20.38%
+iter 2850: loss 3.5751, time 3010.18ms, mfu 20.58%
+iter 2860: loss 3.6047, time 3011.70ms, mfu 20.75%
+iter 2870: loss 3.4881, time 3014.36ms, mfu 20.91%
+iter 2880: loss 3.5222, time 3015.82ms, mfu 21.05%
+iter 2890: loss 3.5504, time 3014.03ms, mfu 21.18%
+step 2900: train loss 3.5338, val loss 3.5318
+saving checkpoint to /scratch.global/chen8596out
+iter 2900: loss 3.6960, time 25081.32ms, mfu 19.33%
+iter 2910: loss 3.5364, time 3008.53ms, mfu 19.64%
+iter 2920: loss 3.3021, time 3006.11ms, mfu 19.91%
+iter 2930: loss 3.5234, time 3002.56ms, mfu 20.16%
+iter 2940: loss 3.5487, time 3005.51ms, mfu 20.39%
+iter 2950: loss 3.3859, time 3007.02ms, mfu 20.59%
+iter 2960: loss 3.6102, time 3004.77ms, mfu 20.77%
+iter 2970: loss 3.6376, time 3010.03ms, mfu 20.93%
+iter 2980: loss 3.7465, time 3011.94ms, mfu 21.07%
+iter 2990: loss 3.5554, time 3013.16ms, mfu 21.20%
+LINESEARCH!!!
+LINESEARCH LR: 0.0009765625
+step 3000: train loss 3.5486, val loss 3.5473
+saving checkpoint to /scratch.global/chen8596out
+iter 3000: loss 3.5115, time 44104.65ms, mfu 19.23%
+iter 3010: loss 3.6057, time 3012.22ms, mfu 19.54%
+iter 3020: loss 3.5372, time 3004.71ms, mfu 19.83%
+iter 3030: loss 3.5781, time 3005.96ms, mfu 20.09%
+iter 3040: loss 3.5305, time 3009.43ms, mfu 20.32%
+iter 3050: loss 3.5684, time 3005.05ms, mfu 20.53%
+iter 3060: loss 3.5893, time 3010.90ms, mfu 20.71%
+iter 3070: loss 3.6035, time 3010.41ms, mfu 20.87%
+iter 3080: loss 3.3706, time 3014.08ms, mfu 21.02%
+iter 3090: loss 3.6791, time 3013.73ms, mfu 21.15%
+step 3100: train loss 3.5669, val loss 3.5623
+saving checkpoint to /scratch.global/chen8596out
+iter 3100: loss 3.5736, time 25089.49ms, mfu 19.31%
+iter 3110: loss 3.7738, time 3013.44ms, mfu 19.61%
+iter 3120: loss 3.5093, time 3008.17ms, mfu 19.89%
+iter 3130: loss 3.5618, time 3010.97ms, mfu 20.13%
+iter 3140: loss 3.5846, time 3008.29ms, mfu 20.36%
+iter 3150: loss 2.9291, time 3009.18ms, mfu 20.56%
+iter 3160: loss 3.5881, time 3008.93ms, mfu 20.74%
+iter 3170: loss 3.5664, time 3016.83ms, mfu 20.90%
+iter 3180: loss 3.5425, time 3013.32ms, mfu 21.04%
+iter 3190: loss 3.5025, time 3018.95ms, mfu 21.17%
+step 3200: train loss 3.5021, val loss 3.5050
+saving checkpoint to /scratch.global/chen8596out
+iter 3200: loss 3.6093, time 25134.45ms, mfu 19.32%
+iter 3210: loss 3.6125, time 3017.56ms, mfu 19.62%
+iter 3220: loss 3.3920, time 3009.07ms, mfu 19.90%
+iter 3230: loss 3.3629, time 3009.73ms, mfu 20.14%
+iter 3240: loss 3.4405, time 3008.75ms, mfu 20.37%
+iter 3250: loss 3.5735, time 3008.98ms, mfu 20.57%
+iter 3260: loss 3.5132, time 3013.20ms, mfu 20.75%
+iter 3270: loss 3.3294, time 3013.87ms, mfu 20.90%
+iter 3280: loss 3.3943, time 3017.33ms, mfu 21.05%
+iter 3290: loss 3.6916, time 3020.35ms, mfu 21.17%
+step 3300: train loss 3.4939, val loss 3.4929
+saving checkpoint to /scratch.global/chen8596out
+iter 3300: loss 3.4287, time 25122.27ms, mfu 19.32%
+iter 3310: loss 3.5247, time 3024.12ms, mfu 19.62%
+iter 3320: loss 3.4849, time 3011.24ms, mfu 19.89%
+iter 3330: loss 3.4599, time 3005.42ms, mfu 20.14%
+iter 3340: loss 3.5199, time 3007.62ms, mfu 20.37%
+iter 3350: loss 3.5101, time 3008.47ms, mfu 20.57%
+iter 3360: loss 3.6011, time 3008.32ms, mfu 20.75%
+iter 3370: loss 3.4467, time 3010.21ms, mfu 20.91%
+iter 3380: loss 3.5420, time 3015.03ms, mfu 21.05%
+iter 3390: loss 3.6045, time 3019.14ms, mfu 21.18%
+step 3400: train loss 3.4858, val loss 3.4896
+saving checkpoint to /scratch.global/chen8596out
+iter 3400: loss 3.3107, time 25031.53ms, mfu 19.33%
+iter 3410: loss 3.5655, time 3011.28ms, mfu 19.63%
+iter 3420: loss 3.3419, time 3002.68ms, mfu 19.91%
+iter 3430: loss 3.4614, time 3002.56ms, mfu 20.16%
+iter 3440: loss 3.6395, time 3002.51ms, mfu 20.39%
+iter 3450: loss 3.5807, time 3002.82ms, mfu 20.59%
+iter 3460: loss 3.4943, time 3006.45ms, mfu 20.77%
+iter 3470: loss 3.5363, time 3008.50ms, mfu 20.93%
+iter 3480: loss 3.4083, time 3008.86ms, mfu 21.08%
+iter 3490: loss 3.5476, time 3010.41ms, mfu 21.21%
+step 3500: train loss 3.4713, val loss 3.4615
+saving checkpoint to /scratch.global/chen8596out
+iter 3500: loss 3.4089, time 25128.99ms, mfu 19.35%
+iter 3510: loss 3.4128, time 3008.89ms, mfu 19.66%
+iter 3520: loss 3.5042, time 3003.34ms, mfu 19.93%
+iter 3530: loss 3.4031, time 3004.13ms, mfu 20.18%
+iter 3540: loss 3.1233, time 3005.30ms, mfu 20.40%
+iter 3550: loss 3.4291, time 3009.10ms, mfu 20.60%
+iter 3560: loss 3.3504, time 3010.00ms, mfu 20.78%
+iter 3570: loss 3.4390, time 3014.09ms, mfu 20.93%
+iter 3580: loss 3.5850, time 3013.79ms, mfu 21.07%
+iter 3590: loss 3.3384, time 3017.90ms, mfu 21.20%
+step 3600: train loss 3.4820, val loss 3.4684
+saving checkpoint to /scratch.global/chen8596out
+iter 3600: loss 3.3044, time 25030.87ms, mfu 19.35%
+iter 3610: loss 3.4114, time 3015.13ms, mfu 19.64%
+iter 3620: loss 3.4279, time 3013.34ms, mfu 19.91%
+iter 3630: loss 3.4179, time 3012.80ms, mfu 20.16%
+iter 3640: loss 3.4390, time 3010.87ms, mfu 20.38%
+iter 3650: loss 3.2876, time 3014.34ms, mfu 20.57%
+iter 3660: loss 3.5688, time 3016.41ms, mfu 20.75%
+iter 3670: loss 3.2321, time 3012.16ms, mfu 20.91%
+iter 3680: loss 3.3443, time 3014.70ms, mfu 21.05%
+iter 3690: loss 3.2860, time 3022.40ms, mfu 21.17%
+step 3700: train loss 3.4421, val loss 3.4567
+saving checkpoint to /scratch.global/chen8596out
+iter 3700: loss 3.5140, time 24993.05ms, mfu 19.33%
+iter 3710: loss 3.2371, time 3010.65ms, mfu 19.63%
+iter 3720: loss 3.3766, time 3005.40ms, mfu 19.91%
+iter 3730: loss 3.5925, time 3003.98ms, mfu 20.16%
+iter 3740: loss 3.5427, time 3004.63ms, mfu 20.38%
+iter 3750: loss 3.5417, time 3003.87ms, mfu 20.59%
+iter 3760: loss 3.4789, time 3012.14ms, mfu 20.76%
+iter 3770: loss 3.2439, time 3009.06ms, mfu 20.92%
+iter 3780: loss 3.2986, time 3014.81ms, mfu 21.06%
+iter 3790: loss 3.5350, time 3016.96ms, mfu 21.19%
+step 3800: train loss 3.4308, val loss 3.4389
+saving checkpoint to /scratch.global/chen8596out
+iter 3800: loss 3.3741, time 25099.67ms, mfu 19.34%
+iter 3810: loss 3.4622, time 3012.70ms, mfu 19.64%
+iter 3820: loss 3.3638, time 3010.56ms, mfu 19.91%
+iter 3830: loss 3.3820, time 3005.64ms, mfu 20.16%
+iter 3840: loss 3.2657, time 3004.04ms, mfu 20.39%
+iter 3850: loss 3.5041, time 3013.09ms, mfu 20.58%
+iter 3860: loss 3.6354, time 3010.95ms, mfu 20.76%
+iter 3870: loss 3.5647, time 3012.61ms, mfu 20.92%
+iter 3880: loss 3.2562, time 3014.68ms, mfu 21.06%
+iter 3890: loss 3.1796, time 3015.38ms, mfu 21.19%
+step 3900: train loss 3.4217, val loss 3.4398
+saving checkpoint to /scratch.global/chen8596out
+iter 3900: loss 3.2948, time 25101.56ms, mfu 19.34%
+iter 3910: loss 3.5082, time 3014.43ms, mfu 19.64%
+iter 3920: loss 3.3748, time 3011.74ms, mfu 19.91%
+iter 3930: loss 3.5455, time 3008.47ms, mfu 20.16%
+iter 3940: loss 3.5124, time 3010.60ms, mfu 20.38%
+iter 3950: loss 3.3687, time 3011.58ms, mfu 20.57%
+iter 3960: loss 3.2046, time 3016.34ms, mfu 20.75%
+iter 3970: loss 3.4891, time 3016.54ms, mfu 20.91%
+iter 3980: loss 3.6938, time 3015.21ms, mfu 21.05%
+iter 3990: loss 3.4665, time 3017.56ms, mfu 21.18%
+LINESEARCH!!!
+LINESEARCH LR: 0.001953125
+step 4000: train loss 3.4094, val loss 3.4193
+saving checkpoint to /scratch.global/chen8596out
+iter 4000: loss 3.3844, time 44189.76ms, mfu 19.21%
+iter 4010: loss 3.4558, time 3015.28ms, mfu 19.52%
+iter 4020: loss 3.3025, time 3011.97ms, mfu 19.81%
+iter 4030: loss 3.4461, time 3013.21ms, mfu 20.06%
+iter 4040: loss 3.3589, time 3011.70ms, mfu 20.29%
+iter 4050: loss 3.5238, time 3007.98ms, mfu 20.50%
+iter 4060: loss 3.4936, time 3012.17ms, mfu 20.68%
+iter 4070: loss 3.3252, time 3015.79ms, mfu 20.85%
+iter 4080: loss 3.4261, time 3018.24ms, mfu 20.99%
+iter 4090: loss 3.4534, time 3018.31ms, mfu 21.13%
+step 4100: train loss 3.4120, val loss 3.4246
+saving checkpoint to /scratch.global/chen8596out
+iter 4100: loss 3.5161, time 25304.28ms, mfu 19.28%
+iter 4110: loss 3.3399, time 3016.96ms, mfu 19.58%
+iter 4120: loss 3.1513, time 3014.01ms, mfu 19.86%
+iter 4130: loss 3.2502, time 3009.90ms, mfu 20.11%
+iter 4140: loss 3.5714, time 3010.57ms, mfu 20.33%
+iter 4150: loss 3.3926, time 3015.25ms, mfu 20.53%
+iter 4160: loss 3.2482, time 3018.65ms, mfu 20.71%
+iter 4170: loss 3.4442, time 3018.08ms, mfu 20.87%
+iter 4180: loss 3.5201, time 3017.87ms, mfu 21.02%
+iter 4190: loss 3.3652, time 3018.10ms, mfu 21.14%
+step 4200: train loss 3.4290, val loss 3.4331
+saving checkpoint to /scratch.global/chen8596out
+iter 4200: loss 3.2670, time 25104.33ms, mfu 19.30%
+iter 4210: loss 3.3017, time 3026.66ms, mfu 19.59%
+iter 4220: loss 3.3922, time 3013.11ms, mfu 19.87%
+iter 4230: loss 3.3055, time 3009.49ms, mfu 20.12%
+iter 4240: loss 3.4559, time 3012.48ms, mfu 20.34%
+iter 4250: loss 3.3949, time 3014.00ms, mfu 20.54%
+iter 4260: loss 3.4308, time 3020.19ms, mfu 20.72%
+iter 4270: loss 3.1412, time 3017.55ms, mfu 20.88%
+iter 4280: loss 3.5753, time 3021.47ms, mfu 21.02%
+iter 4290: loss 3.6056, time 3022.08ms, mfu 21.14%
+step 4300: train loss 3.4351, val loss 3.4325
+saving checkpoint to /scratch.global/chen8596out
+iter 4300: loss 3.6122, time 25230.89ms, mfu 19.30%
+iter 4310: loss 3.3485, time 3016.21ms, mfu 19.60%
+iter 4320: loss 3.3984, time 3008.53ms, mfu 19.88%
+iter 4330: loss 3.3960, time 3010.17ms, mfu 20.13%
+iter 4340: loss 3.5756, time 3005.97ms, mfu 20.35%
+iter 4350: loss 3.3476, time 3009.54ms, mfu 20.55%
+iter 4360: loss 3.5152, time 3013.54ms, mfu 20.73%
+iter 4370: loss 3.4199, time 3013.30ms, mfu 20.89%
+iter 4380: loss 3.2863, time 3021.09ms, mfu 21.03%
+iter 4390: loss 3.4641, time 3020.66ms, mfu 21.16%
+step 4400: train loss 3.4432, val loss 3.4499
+saving checkpoint to /scratch.global/chen8596out
+iter 4400: loss 3.3643, time 25296.66ms, mfu 19.31%
+iter 4410: loss 3.5754, time 3010.96ms, mfu 19.61%
+iter 4420: loss 3.4248, time 3009.20ms, mfu 19.89%
+iter 4430: loss 3.5354, time 3007.92ms, mfu 20.14%
+iter 4440: loss 3.4411, time 3006.80ms, mfu 20.37%
+iter 4450: loss 3.3500, time 3007.31ms, mfu 20.57%
+iter 4460: loss 3.2203, time 3010.47ms, mfu 20.75%
+iter 4470: loss 3.3576, time 3014.25ms, mfu 20.91%
+iter 4480: loss 3.3699, time 3020.02ms, mfu 21.05%
+iter 4490: loss 3.5192, time 3018.23ms, mfu 21.17%
+step 4500: train loss 3.4362, val loss 3.4418
+saving checkpoint to /scratch.global/chen8596out
+iter 4500: loss 3.2094, time 25312.18ms, mfu 19.32%
+iter 4510: loss 3.4797, time 3021.52ms, mfu 19.62%
+iter 4520: loss 3.5140, time 3014.08ms, mfu 19.89%
+iter 4530: loss 3.5404, time 3015.16ms, mfu 20.13%
+iter 4540: loss 3.3879, time 3010.13ms, mfu 20.36%
+iter 4550: loss 3.2667, time 3010.48ms, mfu 20.56%
+iter 4560: loss 3.5493, time 3015.49ms, mfu 20.73%
+iter 4570: loss 3.4141, time 3016.20ms, mfu 20.89%
+iter 4580: loss 3.5097, time 3019.19ms, mfu 21.03%
+iter 4590: loss 3.5558, time 3019.27ms, mfu 21.16%
+step 4600: train loss 3.4367, val loss 3.4534
+saving checkpoint to /scratch.global/chen8596out
+iter 4600: loss 3.5643, time 25297.10ms, mfu 19.31%
+iter 4610: loss 3.3296, time 3020.48ms, mfu 19.61%
+iter 4620: loss 3.5718, time 3006.97ms, mfu 19.89%
+iter 4630: loss 3.4770, time 3000.99ms, mfu 20.14%
+iter 4640: loss 3.5247, time 3002.46ms, mfu 20.37%
+iter 4650: loss 3.3379, time 3005.91ms, mfu 20.57%
+iter 4660: loss 3.3970, time 3008.31ms, mfu 20.75%
+iter 4670: loss 3.3085, time 3013.00ms, mfu 20.91%
+iter 4680: loss 3.4708, time 3012.05ms, mfu 21.06%
+iter 4690: loss 3.5638, time 3013.15ms, mfu 21.19%
+step 4700: train loss 3.4461, val loss 3.4509
+saving checkpoint to /scratch.global/chen8596out
+iter 4700: loss 3.5682, time 25188.30ms, mfu 19.33%
+iter 4710: loss 3.6438, time 3008.98ms, mfu 19.64%
+iter 4720: loss 3.5653, time 3002.86ms, mfu 19.92%
+iter 4730: loss 3.2960, time 2999.20ms, mfu 20.17%
+iter 4740: loss 3.3844, time 3002.89ms, mfu 20.40%
+iter 4750: loss 3.6378, time 3003.21ms, mfu 20.60%
+iter 4760: loss 3.4765, time 3004.81ms, mfu 20.78%
+iter 4770: loss 3.4032, time 3010.29ms, mfu 20.94%
+iter 4780: loss 3.4100, time 3009.28ms, mfu 21.08%
+iter 4790: loss 3.3357, time 3013.08ms, mfu 21.21%
+step 4800: train loss 3.4337, val loss 3.4536
+saving checkpoint to /scratch.global/chen8596out
+iter 4800: loss 3.2715, time 25436.30ms, mfu 19.35%
+iter 4810: loss 3.3015, time 3011.43ms, mfu 19.65%
+iter 4820: loss 3.5058, time 3008.05ms, mfu 19.93%
+iter 4830: loss 3.4440, time 3006.38ms, mfu 20.17%
+iter 4840: loss 3.2433, time 3005.74ms, mfu 20.40%
+iter 4850: loss 3.4964, time 3008.61ms, mfu 20.59%
+iter 4860: loss 3.3815, time 3008.71ms, mfu 20.77%
+iter 4870: loss 3.4255, time 3009.29ms, mfu 20.93%
+iter 4880: loss 3.6476, time 3014.40ms, mfu 21.07%
+iter 4890: loss 3.4804, time 3013.26ms, mfu 21.20%
+step 4900: train loss 3.4424, val loss 3.4520
+saving checkpoint to /scratch.global/chen8596out
+iter 4900: loss 3.2208, time 25279.73ms, mfu 19.35%
+iter 4910: loss 3.5200, time 3022.21ms, mfu 19.64%
+iter 4920: loss 3.0825, time 3004.77ms, mfu 19.92%
+iter 4930: loss 3.5488, time 3003.89ms, mfu 20.17%
+iter 4940: loss 3.3952, time 3004.29ms, mfu 20.39%
+iter 4950: loss 3.3722, time 3005.26ms, mfu 20.59%
+iter 4960: loss 3.2146, time 3011.64ms, mfu 20.77%
+iter 4970: loss 3.5478, time 3010.44ms, mfu 20.93%
+iter 4980: loss 3.5967, time 3014.55ms, mfu 21.07%
+iter 4990: loss 3.3924, time 3014.64ms, mfu 21.20%
+LINESEARCH!!!
+LINESEARCH LR: 0.00390625
+step 5000: train loss 3.4578, val loss 3.4727
+saving checkpoint to /scratch.global/chen8596out
+iter 5000: loss 3.4071, time 44387.78ms, mfu 19.23%
+iter 5010: loss 3.3966, time 3013.51ms, mfu 19.54%
+iter 5020: loss 3.3014, time 3003.49ms, mfu 19.83%
+iter 5030: loss 3.5502, time 2997.81ms, mfu 20.09%
+iter 5040: loss 3.3624, time 3001.60ms, mfu 20.32%
+iter 5050: loss 3.5283, time 3002.33ms, mfu 20.53%
+iter 5060: loss 3.3645, time 3002.91ms, mfu 20.72%
+iter 5070: loss 3.4683, time 3004.74ms, mfu 20.89%
+iter 5080: loss 3.5449, time 3008.55ms, mfu 21.04%
+iter 5090: loss 3.3144, time 3011.85ms, mfu 21.17%
+step 5100: train loss 3.4547, val loss 3.4624
+saving checkpoint to /scratch.global/chen8596out
+iter 5100: loss 3.2853, time 25090.42ms, mfu 19.32%
+iter 5110: loss 3.5525, time 3013.13ms, mfu 19.63%
+iter 5120: loss 3.3792, time 3005.16ms, mfu 19.90%
+iter 5130: loss 3.4901, time 3005.53ms, mfu 20.15%
+iter 5140: loss 3.5632, time 3005.64ms, mfu 20.38%
+iter 5150: loss 3.8037, time 3008.10ms, mfu 20.58%
+iter 5160: loss 3.6314, time 3012.54ms, mfu 20.76%
+iter 5170: loss 3.6941, time 3011.38ms, mfu 20.92%
+iter 5180: loss 3.4926, time 3015.82ms, mfu 21.06%
+iter 5190: loss 3.5866, time 3016.42ms, mfu 21.18%
+step 5200: train loss 3.4537, val loss 3.4901
+saving checkpoint to /scratch.global/chen8596out
+iter 5200: loss 3.1661, time 25073.91ms, mfu 19.33%
+iter 5210: loss 3.4943, time 3021.09ms, mfu 19.63%
+iter 5220: loss 3.3700, time 3007.99ms, mfu 19.90%
+iter 5230: loss 3.5755, time 3008.67ms, mfu 20.15%
+iter 5240: loss 3.4203, time 3008.13ms, mfu 20.37%
+iter 5250: loss 3.5427, time 3010.15ms, mfu 20.57%
+iter 5260: loss 3.5438, time 3012.41ms, mfu 20.75%
+iter 5270: loss 3.4826, time 3014.13ms, mfu 20.91%
+iter 5280: loss 3.6911, time 3012.27ms, mfu 21.05%
+iter 5290: loss 3.5086, time 3013.42ms, mfu 21.18%
+step 5300: train loss 3.4710, val loss 3.4666
+saving checkpoint to /scratch.global/chen8596out
+iter 5300: loss 3.4712, time 25056.02ms, mfu 19.33%
+iter 5310: loss 3.4516, time 3013.14ms, mfu 19.63%
+iter 5320: loss 3.4556, time 3004.24ms, mfu 19.91%
+iter 5330: loss 3.5243, time 2997.45ms, mfu 20.17%
+iter 5340: loss 3.5062, time 3000.67ms, mfu 20.39%
+iter 5350: loss 3.5013, time 3000.47ms, mfu 20.60%
+iter 5360: loss 3.4659, time 3006.46ms, mfu 20.78%
+iter 5370: loss 3.5605, time 3005.01ms, mfu 20.94%
+iter 5380: loss 3.3924, time 3007.28ms, mfu 21.09%
+iter 5390: loss 3.5274, time 3009.94ms, mfu 21.21%
+step 5400: train loss 3.4714, val loss 3.4904
+saving checkpoint to /scratch.global/chen8596out
+iter 5400: loss 3.4328, time 24996.52ms, mfu 19.36%
+iter 5410: loss 3.6830, time 3009.68ms, mfu 19.66%
+iter 5420: loss 3.6110, time 3010.61ms, mfu 19.93%
+iter 5430: loss 3.6186, time 3001.92ms, mfu 20.18%
+iter 5440: loss 3.5003, time 3005.08ms, mfu 20.41%
+iter 5450: loss 3.6207, time 3005.57ms, mfu 20.60%
+iter 5460: loss 3.6614, time 3008.89ms, mfu 20.78%
+iter 5470: loss 3.5096, time 3012.12ms, mfu 20.94%
+iter 5480: loss 3.3581, time 3012.39ms, mfu 21.08%
+iter 5490: loss 3.5718, time 3016.75ms, mfu 21.20%
+step 5500: train loss 3.4869, val loss 3.4981
+saving checkpoint to /scratch.global/chen8596out
+iter 5500: loss 3.3419, time 25095.92ms, mfu 19.35%
+iter 5510: loss 3.3753, time 3021.26ms, mfu 19.65%
+iter 5520: loss 3.6224, time 3005.04ms, mfu 19.92%
+iter 5530: loss 3.5165, time 3007.08ms, mfu 20.17%
+iter 5540: loss 3.5253, time 3006.84ms, mfu 20.39%
+iter 5550: loss 3.3842, time 3008.10ms, mfu 20.59%
+iter 5560: loss 3.5844, time 3011.87ms, mfu 20.77%
+iter 5570: loss 3.4347, time 2989.67ms, mfu 20.94%
+iter 5580: loss 3.5370, time 2958.91ms, mfu 21.12%
+iter 5590: loss 3.5263, time 2945.36ms, mfu 21.30%
+step 5600: train loss 3.5099, val loss 3.5041
+saving checkpoint to /scratch.global/chen8596out
+iter 5600: loss 3.3436, time 24568.09ms, mfu 19.44%
+iter 5610: loss 3.4407, time 2947.01ms, mfu 19.78%
+iter 5620: loss 3.3485, time 2939.42ms, mfu 20.09%
+iter 5630: loss 3.4083, time 2943.82ms, mfu 20.37%
+iter 5640: loss 3.5848, time 2943.91ms, mfu 20.62%
+iter 5650: loss 3.4682, time 2943.20ms, mfu 20.85%
+iter 5660: loss 3.5866, time 2947.38ms, mfu 21.05%
+iter 5670: loss 3.5877, time 2945.26ms, mfu 21.23%
+iter 5680: loss 3.4719, time 2945.06ms, mfu 21.39%
+iter 5690: loss 3.2510, time 2948.72ms, mfu 21.54%
+step 5700: train loss 3.4934, val loss 3.4832
+saving checkpoint to /scratch.global/chen8596out
+iter 5700: loss 3.6026, time 24647.67ms, mfu 19.66%
+iter 5710: loss 3.4131, time 2955.24ms, mfu 19.97%
+iter 5720: loss 3.5852, time 2954.16ms, mfu 20.25%
+iter 5730: loss 3.3797, time 2955.80ms, mfu 20.50%
+iter 5740: loss 3.8018, time 2957.64ms, mfu 20.73%
+iter 5750: loss 3.3664, time 2958.30ms, mfu 20.93%
+iter 5760: loss 3.7106, time 2964.82ms, mfu 21.11%
+iter 5770: loss 3.2941, time 2965.91ms, mfu 21.27%
+iter 5780: loss 3.2660, time 2963.67ms, mfu 21.41%
+iter 5790: loss 3.3316, time 2968.26ms, mfu 21.54%
+step 5800: train loss 3.4893, val loss 3.5097
+saving checkpoint to /scratch.global/chen8596out
+iter 5800: loss 3.5184, time 24671.51ms, mfu 19.66%
+iter 5810: loss 3.4611, time 2965.73ms, mfu 19.96%
+iter 5820: loss 3.6921, time 2966.83ms, mfu 20.24%
+iter 5830: loss 3.6062, time 2966.79ms, mfu 20.48%
+iter 5840: loss 3.4437, time 2970.86ms, mfu 20.70%
+iter 5850: loss 3.5047, time 2970.67ms, mfu 20.90%
+iter 5860: loss 3.3845, time 2976.55ms, mfu 21.07%
+iter 5870: loss 3.4825, time 2980.94ms, mfu 21.22%
+iter 5880: loss 3.7181, time 2984.05ms, mfu 21.36%
+iter 5890: loss 3.4950, time 2988.65ms, mfu 21.47%
+step 5900: train loss 3.4873, val loss 3.4884
+saving checkpoint to /scratch.global/chen8596out
+iter 5900: loss 3.5900, time 24978.98ms, mfu 19.60%
+iter 5910: loss 3.5025, time 2989.98ms, mfu 19.89%
+iter 5920: loss 3.4817, time 2986.90ms, mfu 20.15%
+iter 5930: loss 3.5781, time 2989.84ms, mfu 20.39%
+iter 5940: loss 3.1778, time 2991.70ms, mfu 20.60%
+iter 5950: loss 3.5698, time 2993.97ms, mfu 20.79%
+iter 5960: loss 3.5220, time 2998.26ms, mfu 20.96%
+iter 5970: loss 3.5719, time 3000.57ms, mfu 21.10%
+iter 5980: loss 3.5645, time 3005.98ms, mfu 21.23%
+iter 5990: loss 3.7192, time 3006.77ms, mfu 21.35%
+LINESEARCH!!!
+LINESEARCH LR: 0.0078125
+step 6000: train loss 3.4916, val loss 3.4934
+saving checkpoint to /scratch.global/chen8596out
+iter 6000: loss 3.5755, time 44380.39ms, mfu 19.37%
+iter 6010: loss 3.4869, time 3007.35ms, mfu 19.67%
+iter 6020: loss 3.4886, time 3005.69ms, mfu 19.94%
+iter 6030: loss 3.6058, time 3004.23ms, mfu 20.19%
+iter 6040: loss 3.3201, time 3005.89ms, mfu 20.41%
+iter 6050: loss 3.6422, time 3013.25ms, mfu 20.60%
+iter 6060: loss 3.5632, time 3010.26ms, mfu 20.78%
+iter 6070: loss 3.5063, time 3013.32ms, mfu 20.94%
+iter 6080: loss 3.4434, time 3013.02ms, mfu 21.08%
+iter 6090: loss 3.3617, time 3016.19ms, mfu 21.20%
+step 6100: train loss 3.4937, val loss 3.5079
+saving checkpoint to /scratch.global/chen8596out
+iter 6100: loss 3.3428, time 24933.72ms, mfu 19.35%
+iter 6110: loss 3.6588, time 3007.49ms, mfu 19.66%
+iter 6120: loss 3.5215, time 3005.13ms, mfu 19.93%
+iter 6130: loss 3.4950, time 3002.06ms, mfu 20.18%
+iter 6140: loss 3.6744, time 3004.31ms, mfu 20.40%
+iter 6150: loss 3.0652, time 3007.36ms, mfu 20.60%
+iter 6160: loss 3.7606, time 3007.64ms, mfu 20.78%
+iter 6170: loss 3.6478, time 3012.68ms, mfu 20.94%
+iter 6180: loss 3.6690, time 3016.62ms, mfu 21.08%
+iter 6190: loss 3.4314, time 3017.72ms, mfu 21.20%
+step 6200: train loss 3.5029, val loss 3.5004
+saving checkpoint to /scratch.global/chen8596out
+iter 6200: loss 3.4231, time 25062.99ms, mfu 19.35%
+iter 6210: loss 3.6063, time 3014.76ms, mfu 19.65%
+iter 6220: loss 3.5058, time 2995.71ms, mfu 19.93%
+iter 6230: loss 3.5729, time 2982.80ms, mfu 20.19%
+iter 6240: loss 3.2888, time 2979.89ms, mfu 20.43%
+iter 6250: loss 3.5646, time 2979.68ms, mfu 20.65%
+iter 6260: loss 3.7239, time 2979.97ms, mfu 20.84%
+iter 6270: loss 3.3932, time 2980.45ms, mfu 21.02%
+iter 6280: loss 3.5451, time 2984.48ms, mfu 21.17%
+iter 6290: loss 3.5762, time 2986.07ms, mfu 21.31%
+step 6300: train loss 3.5303, val loss 3.5282
+saving checkpoint to /scratch.global/chen8596out
+iter 6300: loss 3.4023, time 24665.44ms, mfu 19.45%
+iter 6310: loss 3.6954, time 2985.55ms, mfu 19.76%
+iter 6320: loss 3.5814, time 2984.59ms, mfu 20.04%
+iter 6330: loss 3.3927, time 2973.33ms, mfu 20.30%
+iter 6340: loss 3.6712, time 2970.55ms, mfu 20.54%
+iter 6350: loss 3.6262, time 2970.14ms, mfu 20.75%
+iter 6360: loss 3.7590, time 2969.63ms, mfu 20.94%
+iter 6370: loss 3.4646, time 2968.77ms, mfu 21.12%
+iter 6380: loss 3.4650, time 2970.08ms, mfu 21.27%
+iter 6390: loss 3.5959, time 2973.77ms, mfu 21.41%
+step 6400: train loss 3.5116, val loss 3.5277
+saving checkpoint to /scratch.global/chen8596out
+iter 6400: loss 3.2070, time 24636.66ms, mfu 19.54%
+iter 6410: loss 3.3442, time 2975.65ms, mfu 19.85%
+iter 6420: loss 3.3742, time 2974.13ms, mfu 20.13%
+iter 6430: loss 3.4213, time 2974.45ms, mfu 20.38%
+iter 6440: loss 3.5455, time 2976.96ms, mfu 20.60%
+iter 6450: loss 3.5397, time 2981.00ms, mfu 20.80%
+iter 6460: loss 3.8672, time 2984.89ms, mfu 20.98%
+iter 6470: loss 3.5790, time 2987.97ms, mfu 21.13%
+iter 6480: loss 3.5414, time 2994.37ms, mfu 21.27%
+iter 6490: loss 3.5497, time 2994.60ms, mfu 21.39%
+step 6500: train loss 3.5234, val loss 3.5233
+saving checkpoint to /scratch.global/chen8596out
+iter 6500: loss 3.5206, time 24852.16ms, mfu 19.52%
+iter 6510: loss 3.5382, time 3003.69ms, mfu 19.81%
+iter 6520: loss 3.5883, time 2998.77ms, mfu 20.08%
+iter 6530: loss 3.6283, time 3000.17ms, mfu 20.31%
+iter 6540: loss 3.4382, time 2997.31ms, mfu 20.53%
+iter 6550: loss 3.5148, time 3004.76ms, mfu 20.72%
+iter 6560: loss 3.5302, time 3005.52ms, mfu 20.88%
+iter 6570: loss 3.6499, time 3009.00ms, mfu 21.03%
+iter 6580: loss 3.6314, time 3010.19ms, mfu 21.17%
+iter 6590: loss 3.5796, time 3009.29ms, mfu 21.29%
+step 6600: train loss 3.5638, val loss 3.5423
+saving checkpoint to /scratch.global/chen8596out
+iter 6600: loss 3.3147, time 24896.39ms, mfu 19.43%
+iter 6610: loss 3.4444, time 3007.82ms, mfu 19.72%
+iter 6620: loss 3.6095, time 3004.09ms, mfu 19.99%
+iter 6630: loss 3.4696, time 3002.10ms, mfu 20.24%
+iter 6640: loss 3.3947, time 2997.70ms, mfu 20.46%
+iter 6650: loss 3.5433, time 2988.58ms, mfu 20.67%
+iter 6660: loss 3.6011, time 2982.31ms, mfu 20.86%
+iter 6670: loss 3.5599, time 2985.77ms, mfu 21.03%
+iter 6680: loss 3.4304, time 2985.53ms, mfu 21.18%
+iter 6690: loss 3.5355, time 2987.86ms, mfu 21.31%
+step 6700: train loss 3.5205, val loss 3.5243
+saving checkpoint to /scratch.global/chen8596out
+iter 6700: loss 3.3312, time 24752.75ms, mfu 19.46%
+iter 6710: loss 3.5117, time 2985.02ms, mfu 19.77%
+iter 6720: loss 3.5342, time 2982.18ms, mfu 20.05%
+iter 6730: loss 3.6860, time 2987.44ms, mfu 20.30%
+iter 6740: loss 3.3961, time 2984.61ms, mfu 20.52%
+iter 6750: loss 3.3478, time 2986.63ms, mfu 20.72%
+iter 6760: loss 3.6385, time 2988.23ms, mfu 20.90%
+iter 6770: loss 3.4799, time 2991.01ms, mfu 21.07%
+iter 6780: loss 3.5922, time 2996.29ms, mfu 21.21%
+iter 6790: loss 3.4248, time 2999.57ms, mfu 21.33%
+step 6800: train loss 3.5347, val loss 3.5577
+saving checkpoint to /scratch.global/chen8596out
+iter 6800: loss 3.6609, time 24733.41ms, mfu 19.47%
+iter 6810: loss 3.4318, time 2994.06ms, mfu 19.77%
+iter 6820: loss 3.5096, time 2990.91ms, mfu 20.05%
+iter 6830: loss 3.4056, time 2993.99ms, mfu 20.29%
+iter 6840: loss 3.5601, time 2992.61ms, mfu 20.51%
+iter 6850: loss 3.3800, time 2982.92ms, mfu 20.72%
+iter 6860: loss 3.4981, time 2976.79ms, mfu 20.91%
+iter 6870: loss 3.7182, time 2978.82ms, mfu 21.08%
+iter 6880: loss 3.5729, time 2979.49ms, mfu 21.23%
+iter 6890: loss 3.5966, time 2984.22ms, mfu 21.36%
+step 6900: train loss 3.5223, val loss 3.5252
+saving checkpoint to /scratch.global/chen8596out
+iter 6900: loss 3.5658, time 24644.91ms, mfu 19.50%
+iter 6910: loss 3.4332, time 2984.07ms, mfu 19.81%
+iter 6920: loss 3.3730, time 2989.50ms, mfu 20.08%
+iter 6930: loss 3.6483, time 2991.94ms, mfu 20.32%
+iter 6940: loss 3.4681, time 2994.66ms, mfu 20.54%
+iter 6950: loss 3.7140, time 2991.45ms, mfu 20.73%
+iter 6960: loss 3.4131, time 2993.67ms, mfu 20.91%
+iter 6970: loss 3.5771, time 2995.55ms, mfu 21.07%
+iter 6980: loss 3.5136, time 2999.38ms, mfu 21.20%
+iter 6990: loss 3.7097, time 3001.72ms, mfu 21.33%
+LINESEARCH!!!
+LINESEARCH LR: 0.0078125
+step 7000: train loss 3.5488, val loss 3.5501
+saving checkpoint to /scratch.global/chen8596out
+iter 7000: loss 3.6565, time 43889.78ms, mfu 19.35%
+iter 7010: loss 3.5778, time 3003.60ms, mfu 19.65%
+iter 7020: loss 3.4096, time 3006.46ms, mfu 19.93%
+iter 7030: loss 3.4173, time 3006.50ms, mfu 20.17%
+iter 7040: loss 3.6840, time 3012.09ms, mfu 20.39%
+iter 7050: loss 3.5356, time 2996.38ms, mfu 20.60%
+iter 7060: loss 3.4804, time 2987.90ms, mfu 20.79%
+iter 7070: loss 3.4653, time 2987.89ms, mfu 20.97%
+iter 7080: loss 3.6684, time 2993.93ms, mfu 21.12%
+iter 7090: loss 3.5177, time 2994.15ms, mfu 21.26%
+step 7100: train loss 3.5211, val loss 3.5190
+saving checkpoint to /scratch.global/chen8596out
+iter 7100: loss 3.5545, time 24795.97ms, mfu 19.40%
+iter 7110: loss 3.5182, time 2994.53ms, mfu 19.71%
+iter 7120: loss 3.5107, time 2993.34ms, mfu 19.99%
+iter 7130: loss 3.5336, time 2987.08ms, mfu 20.24%
+iter 7140: loss 3.5707, time 2992.86ms, mfu 20.47%
+iter 7150: loss 3.5764, time 2981.62ms, mfu 20.68%
+iter 7160: loss 3.6576, time 2980.19ms, mfu 20.87%
+iter 7170: loss 3.3706, time 2975.72ms, mfu 21.05%
+iter 7180: loss 3.5454, time 2977.61ms, mfu 21.20%
+iter 7190: loss 3.6129, time 2981.28ms, mfu 21.34%
+step 7200: train loss 3.5072, val loss 3.5243
+saving checkpoint to /scratch.global/chen8596out
+iter 7200: loss 3.3229, time 24660.99ms, mfu 19.48%
+iter 7210: loss 3.5023, time 2978.52ms, mfu 19.79%
+iter 7220: loss 3.4605, time 2976.14ms, mfu 20.08%
+iter 7230: loss 3.2886, time 2975.90ms, mfu 20.33%
+iter 7240: loss 3.4608, time 2978.06ms, mfu 20.56%
+iter 7250: loss 3.5471, time 2984.86ms, mfu 20.76%
+iter 7260: loss 3.5432, time 2987.87ms, mfu 20.94%
+iter 7270: loss 3.5860, time 2989.25ms, mfu 21.09%
+iter 7280: loss 3.3621, time 2994.81ms, mfu 21.23%
+iter 7290: loss 3.6796, time 2999.12ms, mfu 21.36%
+step 7300: train loss 3.4936, val loss 3.4981
+saving checkpoint to /scratch.global/chen8596out
+iter 7300: loss 3.5502, time 24832.22ms, mfu 19.49%
+iter 7310: loss 3.4006, time 3000.68ms, mfu 19.79%
+iter 7320: loss 3.4429, time 2998.02ms, mfu 20.05%
+iter 7330: loss 3.5235, time 3000.82ms, mfu 20.29%
+iter 7340: loss 3.6184, time 3003.82ms, mfu 20.50%
+iter 7350: loss 3.6586, time 3002.91ms, mfu 20.70%
+iter 7360: loss 3.4354, time 2997.00ms, mfu 20.87%
+iter 7370: loss 3.5894, time 2997.95ms, mfu 21.03%
+iter 7380: loss 3.2392, time 3001.32ms, mfu 21.17%
+iter 7390: loss 3.5178, time 2999.89ms, mfu 21.30%
+step 7400: train loss 3.4954, val loss 3.4959
+saving checkpoint to /scratch.global/chen8596out
+iter 7400: loss 3.6616, time 24848.19ms, mfu 19.44%
+iter 7410: loss 3.4939, time 2997.09ms, mfu 19.74%
+iter 7420: loss 3.6093, time 2994.63ms, mfu 20.02%
+iter 7430: loss 3.3371, time 2991.64ms, mfu 20.27%
+iter 7440: loss 3.6143, time 2996.83ms, mfu 20.49%
+iter 7450: loss 3.6589, time 2995.37ms, mfu 20.68%
+iter 7460: loss 3.4641, time 2982.05ms, mfu 20.87%
+iter 7470: loss 3.5716, time 2981.71ms, mfu 21.04%
+iter 7480: loss 3.4698, time 2979.01ms, mfu 21.20%
+iter 7490: loss 3.6280, time 2974.58ms, mfu 21.34%
+step 7500: train loss 3.4849, val loss 3.4962
+saving checkpoint to /scratch.global/chen8596out
+iter 7500: loss 3.4454, time 24764.25ms, mfu 19.48%
+iter 7510: loss 3.4609, time 2972.39ms, mfu 19.80%
+iter 7520: loss 3.4735, time 2978.39ms, mfu 20.08%
+iter 7530: loss 3.5339, time 2979.94ms, mfu 20.33%
+iter 7540: loss 3.3958, time 2978.19ms, mfu 20.56%
+iter 7550: loss 3.2594, time 2988.98ms, mfu 20.76%
+iter 7560: loss 3.4170, time 2988.79ms, mfu 20.93%
+iter 7570: loss 3.5414, time 2990.20ms, mfu 21.09%
+iter 7580: loss 3.3138, time 2992.47ms, mfu 21.23%
+iter 7590: loss 3.3951, time 2999.02ms, mfu 21.35%
+step 7600: train loss 3.4780, val loss 3.4648
+saving checkpoint to /scratch.global/chen8596out
+iter 7600: loss 3.4938, time 24780.18ms, mfu 19.49%
+iter 7610: loss 3.4074, time 2996.53ms, mfu 19.79%
+iter 7620: loss 3.3581, time 2996.42ms, mfu 20.06%
+iter 7630: loss 3.3164, time 2996.27ms, mfu 20.30%
+iter 7640: loss 3.4774, time 3000.55ms, mfu 20.51%
+iter 7650: loss 3.4022, time 2997.19ms, mfu 20.71%
+iter 7660: loss 3.5318, time 3004.57ms, mfu 20.88%
+iter 7670: loss 3.3378, time 2995.45ms, mfu 21.04%
+iter 7680: loss 3.7094, time 2989.02ms, mfu 21.19%
+iter 7690: loss 3.4565, time 2985.57ms, mfu 21.32%
+step 7700: train loss 3.4550, val loss 3.4654
+saving checkpoint to /scratch.global/chen8596out
+iter 7700: loss 3.1178, time 24780.68ms, mfu 19.46%
+iter 7710: loss 3.6877, time 2993.73ms, mfu 19.76%
+iter 7720: loss 3.4756, time 2989.37ms, mfu 20.04%
+iter 7730: loss 3.5981, time 2995.02ms, mfu 20.28%
+iter 7740: loss 3.3752, time 2996.90ms, mfu 20.50%
+iter 7750: loss 3.3725, time 3001.86ms, mfu 20.70%
+iter 7760: loss 3.5870, time 2997.24ms, mfu 20.87%
+iter 7770: loss 3.4754, time 3002.73ms, mfu 21.03%
+iter 7780: loss 3.5597, time 2984.80ms, mfu 21.18%
+iter 7790: loss 3.5615, time 2982.65ms, mfu 21.32%
+step 7800: train loss 3.4992, val loss 3.4992
+saving checkpoint to /scratch.global/chen8596out
+iter 7800: loss 3.2457, time 24750.88ms, mfu 19.46%
+iter 7810: loss 3.4781, time 2987.00ms, mfu 19.77%
+iter 7820: loss 3.5627, time 2985.40ms, mfu 20.05%
+iter 7830: loss 3.3943, time 2985.69ms, mfu 20.30%
+iter 7840: loss 3.3689, time 2988.98ms, mfu 20.52%
+iter 7850: loss 3.4485, time 2992.31ms, mfu 20.72%
+iter 7860: loss 3.2897, time 2995.53ms, mfu 20.89%
+iter 7870: loss 3.5599, time 2999.56ms, mfu 21.05%
+iter 7880: loss 3.3659, time 2989.75ms, mfu 21.20%
+iter 7890: loss 3.4321, time 2992.70ms, mfu 21.33%
+step 7900: train loss 3.4669, val loss 3.4457
+saving checkpoint to /scratch.global/chen8596out
+iter 7900: loss 3.3901, time 24858.72ms, mfu 19.46%
+iter 7910: loss 3.5058, time 2991.94ms, mfu 19.77%
+iter 7920: loss 3.5075, time 2987.89ms, mfu 20.05%
+iter 7930: loss 3.6833, time 2982.54ms, mfu 20.30%
+iter 7940: loss 3.6935, time 2987.32ms, mfu 20.52%
+iter 7950: loss 3.6791, time 2988.04ms, mfu 20.72%
+iter 7960: loss 3.4912, time 2996.07ms, mfu 20.90%
+iter 7970: loss 3.5861, time 2998.61ms, mfu 21.05%
+iter 7980: loss 3.4220, time 2991.50ms, mfu 21.20%
+iter 7990: loss 3.5035, time 2991.05ms, mfu 21.33%
+LINESEARCH!!!
+LINESEARCH LR: 0.015625
+step 8000: train loss 3.4314, val loss 3.4369
+saving checkpoint to /scratch.global/chen8596out
+iter 8000: loss 3.4887, time 43673.08ms, mfu 19.35%
+iter 8010: loss 3.6153, time 2998.65ms, mfu 19.66%
+iter 8020: loss 3.2715, time 2992.77ms, mfu 19.95%
+iter 8030: loss 3.4247, time 2993.26ms, mfu 20.20%
+iter 8040: loss 3.4582, time 2993.03ms, mfu 20.43%
+iter 8050: loss 3.6001, time 2997.77ms, mfu 20.63%
+iter 8060: loss 3.4861, time 2999.02ms, mfu 20.81%
+iter 8070: loss 3.5920, time 2999.21ms, mfu 20.98%
+iter 8080: loss 3.3105, time 2996.24ms, mfu 21.13%
+iter 8090: loss 3.5628, time 2998.33ms, mfu 21.26%
+step 8100: train loss 3.4673, val loss 3.4673
+saving checkpoint to /scratch.global/chen8596out
+iter 8100: loss 3.5519, time 24714.59ms, mfu 19.41%
+iter 8110: loss 3.2004, time 3000.46ms, mfu 19.71%
+iter 8120: loss 3.4696, time 2999.38ms, mfu 19.98%
+iter 8130: loss 3.5117, time 2995.55ms, mfu 20.23%
+iter 8140: loss 3.5211, time 3000.64ms, mfu 20.45%
+iter 8150: loss 3.5122, time 2999.34ms, mfu 20.65%
+iter 8160: loss 3.3073, time 3000.70ms, mfu 20.83%
+iter 8170: loss 3.6031, time 3002.69ms, mfu 20.99%
+iter 8180: loss 3.6368, time 3006.97ms, mfu 21.13%
+iter 8190: loss 3.2655, time 2998.09ms, mfu 21.26%
+step 8200: train loss 3.4956, val loss 3.4983
+saving checkpoint to /scratch.global/chen8596out
+iter 8200: loss 3.3615, time 24910.03ms, mfu 19.41%
+iter 8210: loss 3.3901, time 2991.31ms, mfu 19.72%
+iter 8220: loss 3.3695, time 2990.31ms, mfu 20.00%
+iter 8230: loss 3.5357, time 2991.86ms, mfu 20.25%
+iter 8240: loss 3.4010, time 2994.77ms, mfu 20.47%
+iter 8250: loss 3.5589, time 2978.95ms, mfu 20.68%
+iter 8260: loss 3.4219, time 2973.93ms, mfu 20.88%
+iter 8270: loss 3.5413, time 2978.56ms, mfu 21.05%
+iter 8280: loss 3.6060, time 2973.69ms, mfu 21.21%
+iter 8290: loss 3.5986, time 2968.76ms, mfu 21.36%
+step 8300: train loss 3.5078, val loss 3.5084
+saving checkpoint to /scratch.global/chen8596out
+iter 8300: loss 3.4391, time 24998.12ms, mfu 19.49%
+iter 8310: loss 3.2507, time 2971.68ms, mfu 19.81%
+iter 8320: loss 3.5754, time 2970.45ms, mfu 20.09%
+iter 8330: loss 3.4967, time 2967.84ms, mfu 20.35%
+iter 8340: loss 3.6643, time 2975.25ms, mfu 20.58%
+iter 8350: loss 3.3578, time 2976.20ms, mfu 20.79%
+iter 8360: loss 3.5747, time 2986.12ms, mfu 20.96%
+iter 8370: loss 3.4431, time 2989.95ms, mfu 21.12%
+iter 8380: loss 3.4644, time 2994.05ms, mfu 21.25%
+iter 8390: loss 4.1979, time 2980.30ms, mfu 21.39%
+step 8400: train loss 4.2492, val loss 4.2482
+saving checkpoint to /scratch.global/chen8596out
+iter 8400: loss 4.2737, time 24640.61ms, mfu 19.52%
+iter 8410: loss 4.2123, time 2970.96ms, mfu 19.84%
+iter 8420: loss 3.8736, time 2974.23ms, mfu 20.12%
+iter 8430: loss 3.7574, time 2974.65ms, mfu 20.37%
+iter 8440: loss 3.5520, time 2978.27ms, mfu 20.59%
+iter 8450: loss 3.6172, time 2984.27ms, mfu 20.79%
+iter 8460: loss 3.3502, time 2986.53ms, mfu 20.96%
+iter 8470: loss 3.6608, time 2997.62ms, mfu 21.11%
+iter 8480: loss 3.5878, time 2990.08ms, mfu 21.25%
+iter 8490: loss 3.2753, time 2997.80ms, mfu 21.38%
+step 8500: train loss 3.6219, val loss 3.6347
+saving checkpoint to /scratch.global/chen8596out
+iter 8500: loss 3.7392, time 24914.16ms, mfu 19.51%
+iter 8510: loss 3.5583, time 2992.98ms, mfu 19.81%
+iter 8520: loss 3.6118, time 2986.94ms, mfu 20.08%
+iter 8530: loss 3.6174, time 2993.15ms, mfu 20.32%
+iter 8540: loss 3.7645, time 2997.13ms, mfu 20.54%
+iter 8550: loss 3.7046, time 2997.50ms, mfu 20.73%
+iter 8560: loss 3.9279, time 2999.31ms, mfu 20.90%
+iter 8570: loss 3.7043, time 3002.94ms, mfu 21.05%
+iter 8580: loss 3.5456, time 3007.53ms, mfu 21.19%
+iter 8590: loss 3.5929, time 3010.12ms, mfu 21.30%
+step 8600: train loss 3.5687, val loss 3.5709
+saving checkpoint to /scratch.global/chen8596out
+iter 8600: loss 3.5164, time 24993.01ms, mfu 19.44%
+iter 8610: loss 3.5654, time 3007.31ms, mfu 19.74%
+iter 8620: loss 3.8257, time 3001.95ms, mfu 20.01%
+iter 8630: loss 3.7748, time 3000.47ms, mfu 20.25%
+iter 8640: loss 4.1399, time 3004.56ms, mfu 20.47%
+iter 8650: loss 4.7088, time 3003.77ms, mfu 20.66%
+iter 8660: loss 4.0636, time 3009.19ms, mfu 20.83%
+iter 8670: loss 3.7551, time 3007.55ms, mfu 20.99%
+iter 8680: loss 3.7085, time 3009.25ms, mfu 21.13%
+iter 8690: loss 3.6257, time 3020.92ms, mfu 21.24%
+step 8700: train loss 3.6380, val loss 3.6567
+saving checkpoint to /scratch.global/chen8596out
+iter 8700: loss 3.5758, time 24807.72ms, mfu 19.39%
+iter 8710: loss 3.5392, time 2986.61ms, mfu 19.71%
+iter 8720: loss 3.6803, time 2983.22ms, mfu 19.99%
+iter 8730: loss 3.5418, time 2987.92ms, mfu 20.25%
+iter 8740: loss 3.7165, time 2985.27ms, mfu 20.48%
+iter 8750: loss 3.7611, time 2988.15ms, mfu 20.68%
+iter 8760: loss 3.7729, time 2991.70ms, mfu 20.86%
+iter 8770: loss 3.8219, time 2995.45ms, mfu 21.03%
+iter 8780: loss 3.4232, time 2999.47ms, mfu 21.17%
+iter 8790: loss 3.6234, time 3003.99ms, mfu 21.29%
+step 8800: train loss 3.6191, val loss 3.6280
+saving checkpoint to /scratch.global/chen8596out
+iter 8800: loss 3.7279, time 24842.87ms, mfu 19.43%
+iter 8810: loss 3.6533, time 2995.06ms, mfu 19.74%
+iter 8820: loss 3.6868, time 2990.86ms, mfu 20.02%
+iter 8830: loss 3.7582, time 2986.81ms, mfu 20.27%
+iter 8840: loss 4.1992, time 2988.15ms, mfu 20.50%
+iter 8850: loss 4.7350, time 2992.66ms, mfu 20.70%
+iter 8860: loss 4.7190, time 2997.72ms, mfu 20.87%
+iter 8870: loss 4.0590, time 2998.04ms, mfu 21.03%
+iter 8880: loss 3.9585, time 2999.73ms, mfu 21.17%
+iter 8890: loss 3.7482, time 3009.47ms, mfu 21.29%
+step 8900: train loss 3.6996, val loss 3.7195
+saving checkpoint to /scratch.global/chen8596out
+iter 8900: loss 3.6154, time 25367.81ms, mfu 19.43%
+iter 8910: loss 3.6776, time 2991.23ms, mfu 19.74%
+iter 8920: loss 3.4652, time 2986.81ms, mfu 20.02%
+iter 8930: loss 3.7479, time 2988.07ms, mfu 20.27%
+iter 8940: loss 3.5794, time 2992.94ms, mfu 20.49%
+iter 8950: loss 3.6662, time 2996.06ms, mfu 20.69%
+iter 8960: loss 3.5730, time 2995.68ms, mfu 20.87%
+iter 8970: loss 3.8485, time 2998.40ms, mfu 21.03%
+iter 8980: loss 3.7430, time 3003.70ms, mfu 21.17%
+iter 8990: loss 3.5821, time 3009.98ms, mfu 21.29%
+LINESEARCH!!!
+LINESEARCH LR: 0.015625
+step 9000: train loss 3.7373, val loss 3.7256
+saving checkpoint to /scratch.global/chen8596out
+iter 9000: loss 3.7284, time 44038.78ms, mfu 19.31%
+iter 9010: loss 3.7566, time 2987.05ms, mfu 19.63%
+iter 9020: loss 4.1554, time 2991.38ms, mfu 19.92%
+iter 9030: loss 4.3580, time 2994.75ms, mfu 20.18%
+iter 9040: loss 4.2821, time 2991.50ms, mfu 20.41%
+iter 9050: loss 4.0260, time 2997.59ms, mfu 20.62%
+iter 9060: loss 3.9037, time 3000.34ms, mfu 20.80%
+iter 9070: loss 3.8694, time 2998.15ms, mfu 20.96%
+iter 9080: loss 3.5736, time 3002.35ms, mfu 21.11%
+iter 9090: loss 3.6801, time 3004.69ms, mfu 21.24%
+step 9100: train loss 3.6807, val loss 3.6997
+saving checkpoint to /scratch.global/chen8596out
+iter 9100: loss 3.6400, time 25276.33ms, mfu 19.38%
+iter 9110: loss 3.6163, time 2995.73ms, mfu 19.69%
+iter 9120: loss 3.7473, time 2997.32ms, mfu 19.97%
+iter 9130: loss 3.7044, time 2998.19ms, mfu 20.22%
+iter 9140: loss 4.1136, time 3000.43ms, mfu 20.44%
+iter 9150: loss 3.9012, time 3001.50ms, mfu 20.64%
+iter 9160: loss 3.6391, time 3005.35ms, mfu 20.82%
+iter 9170: loss 3.5049, time 3005.60ms, mfu 20.97%
+iter 9180: loss 3.5694, time 3008.32ms, mfu 21.11%
+iter 9190: loss 3.6621, time 3012.33ms, mfu 21.24%
+step 9200: train loss 3.7146, val loss 3.7083
+saving checkpoint to /scratch.global/chen8596out
+iter 9200: loss 3.7333, time 25186.81ms, mfu 19.38%
+iter 9210: loss 3.7043, time 3000.20ms, mfu 19.69%
+iter 9220: loss 3.6585, time 2997.77ms, mfu 19.96%
+iter 9230: loss 3.6801, time 2995.46ms, mfu 20.22%
+iter 9240: loss 3.4364, time 2998.64ms, mfu 20.44%
+iter 9250: loss 3.6105, time 3006.06ms, mfu 20.64%
+iter 9260: loss 3.6024, time 2999.39ms, mfu 20.82%
+iter 9270: loss 3.6707, time 3002.08ms, mfu 20.98%
+iter 9280: loss 3.7480, time 3010.47ms, mfu 21.12%
+iter 9290: loss 3.7532, time 3007.79ms, mfu 21.24%
+step 9300: train loss 3.8920, val loss 3.8969
+saving checkpoint to /scratch.global/chen8596out
+iter 9300: loss 3.8391, time 25409.36ms, mfu 19.38%
+iter 9310: loss 3.7117, time 2996.06ms, mfu 19.69%
+iter 9320: loss 3.8794, time 2986.73ms, mfu 19.98%
+iter 9330: loss 3.7246, time 2982.72ms, mfu 20.24%
+iter 9340: loss 3.7942, time 2982.88ms, mfu 20.47%
+iter 9350: loss 3.4173, time 2981.61ms, mfu 20.68%
+iter 9360: loss 3.7067, time 2985.30ms, mfu 20.87%
+iter 9370: loss 3.7602, time 2987.76ms, mfu 21.04%
+iter 9380: loss 3.5112, time 2993.62ms, mfu 21.18%
+iter 9390: loss 3.6518, time 2994.60ms, mfu 21.31%
+step 9400: train loss 3.6760, val loss 3.6796
+saving checkpoint to /scratch.global/chen8596out
+iter 9400: loss 3.6756, time 25123.43ms, mfu 19.45%
+iter 9410: loss 3.7464, time 2993.26ms, mfu 19.75%
+iter 9420: loss 3.7699, time 2977.32ms, mfu 20.04%
+iter 9430: loss 3.5374, time 2971.07ms, mfu 20.30%
+iter 9440: loss 3.7400, time 2972.05ms, mfu 20.54%
+iter 9450: loss 3.4373, time 2971.72ms, mfu 20.75%
+iter 9460: loss 3.7859, time 2975.40ms, mfu 20.94%
+iter 9470: loss 3.7008, time 2974.47ms, mfu 21.11%
+iter 9480: loss 3.4389, time 2976.16ms, mfu 21.26%
+iter 9490: loss 3.3861, time 2978.41ms, mfu 21.39%
+step 9500: train loss 3.6173, val loss 3.6300
+saving checkpoint to /scratch.global/chen8596out
+iter 9500: loss 3.5255, time 25042.31ms, mfu 19.52%
+iter 9510: loss 3.4711, time 2976.57ms, mfu 19.83%
+iter 9520: loss 3.7157, time 2973.38ms, mfu 20.11%
+iter 9530: loss 3.6859, time 2972.04ms, mfu 20.37%
+iter 9540: loss 3.6425, time 2966.76ms, mfu 20.60%
+iter 9550: loss 3.6110, time 2972.17ms, mfu 20.81%
+iter 9560: loss 3.5153, time 2972.47ms, mfu 20.99%
+iter 9570: loss 3.7280, time 2976.40ms, mfu 21.15%
+iter 9580: loss 3.6748, time 2975.86ms, mfu 21.30%
+iter 9590: loss 3.6300, time 2980.27ms, mfu 21.43%
+step 9600: train loss 3.5989, val loss 3.6210
+saving checkpoint to /scratch.global/chen8596out
+iter 9600: loss 3.6807, time 24998.32ms, mfu 19.56%
+iter 9610: loss 3.5867, time 2982.41ms, mfu 19.86%
+iter 9620: loss 3.3088, time 2980.61ms, mfu 20.13%
+iter 9630: loss 3.7542, time 2971.36ms, mfu 20.38%
+iter 9640: loss 3.3966, time 2963.99ms, mfu 20.62%
+iter 9650: loss 3.5253, time 2965.66ms, mfu 20.83%
+iter 9660: loss 3.5951, time 2966.71ms, mfu 21.01%
+iter 9670: loss 3.6473, time 2969.52ms, mfu 21.18%
+iter 9680: loss 3.5206, time 2973.51ms, mfu 21.33%
+iter 9690: loss 3.5001, time 2974.52ms, mfu 21.46%
+step 9700: train loss 3.6215, val loss 3.6226
+saving checkpoint to /scratch.global/chen8596out
+iter 9700: loss 3.6331, time 24749.86ms, mfu 19.58%
+iter 9710: loss 3.5501, time 2976.50ms, mfu 19.89%
+iter 9720: loss 3.5929, time 2981.26ms, mfu 20.16%
+iter 9730: loss 3.5111, time 2979.77ms, mfu 20.40%
+iter 9740: loss 3.6861, time 2981.54ms, mfu 20.62%
+iter 9750: loss 3.5385, time 2980.72ms, mfu 20.82%
+iter 9760: loss 3.5721, time 2985.12ms, mfu 20.99%
+iter 9770: loss 3.1937, time 2993.27ms, mfu 21.14%
+iter 9780: loss 3.5556, time 2992.44ms, mfu 21.28%
+iter 9790: loss 3.6761, time 2998.10ms, mfu 21.39%
+step 9800: train loss 3.6171, val loss 3.6141
+saving checkpoint to /scratch.global/chen8596out
+iter 9800: loss 3.5685, time 24930.48ms, mfu 19.52%
+iter 9810: loss 3.4569, time 3003.07ms, mfu 19.81%
+iter 9820: loss 3.5978, time 2994.54ms, mfu 20.08%
+iter 9830: loss 3.5646, time 2992.25ms, mfu 20.32%
+iter 9840: loss 3.7681, time 2981.00ms, mfu 20.55%
+iter 9850: loss 3.7117, time 2980.07ms, mfu 20.75%
+iter 9860: loss 3.5776, time 2979.92ms, mfu 20.94%
+iter 9870: loss 3.5073, time 2980.87ms, mfu 21.10%
+iter 9880: loss 3.6691, time 2981.61ms, mfu 21.25%
+iter 9890: loss 3.6586, time 2982.32ms, mfu 21.38%
+step 9900: train loss 3.6063, val loss 3.6141
+saving checkpoint to /scratch.global/chen8596out
+iter 9900: loss 3.6165, time 25071.57ms, mfu 19.51%
+iter 9910: loss 3.3433, time 2986.33ms, mfu 19.82%
+iter 9920: loss 3.3748, time 2984.08ms, mfu 20.09%
+iter 9930: loss 3.5277, time 2983.15ms, mfu 20.34%
+iter 9940: loss 3.8361, time 2976.76ms, mfu 20.57%
+iter 9950: loss 3.4591, time 2975.83ms, mfu 20.77%
+iter 9960: loss 3.5080, time 2972.74ms, mfu 20.96%
+iter 9970: loss 3.6347, time 2975.79ms, mfu 21.13%
+iter 9980: loss 3.5815, time 2976.92ms, mfu 21.28%
+iter 9990: loss 3.6012, time 2973.94ms, mfu 21.41%
+LINESEARCH!!!
+LINESEARCH LR: 0.015625
+step 10000: train loss 3.5858, val loss 3.6059
+saving checkpoint to /scratch.global/chen8596out
+iter 10000: loss 3.7007, time 43816.90ms, mfu 19.42%

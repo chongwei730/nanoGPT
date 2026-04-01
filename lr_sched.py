@@ -9,7 +9,7 @@ import random
 import torch
 import numpy as np
 import torch.distributed as dist
-from absl import logging
+# from absl import logging
 from torch.nn.functional import cosine_similarity
 import matplotlib.pyplot as plt
 
@@ -61,7 +61,7 @@ class LineSearchScheduler():
         self.prev_alpha = state_dict.get('last_lr', self.start_lr)
 
     def get_potential_update_direction(self, fallback_to_neg_grad=False):
-        if self.optimizer_type == "Adam":
+        if self.optimizer_type == "AdamW":
             return self.get_potential_adam_update_direction(fallback_to_neg_grad)
         elif self.optimizer_type == "SGD_momentum":
             return self.get_potential_sgd_momentum_update_direction(fallback_to_neg_grad)
@@ -105,7 +105,7 @@ class LineSearchScheduler():
         eps = pg0.get("eps", 1e-8)
         beta1, beta2 = pg0.get("betas", (0.9, 0.999))
         wd = pg0.get("weight_decay", 0)
-        # logging.warning(f"weight_decay {wd}")
+        # print(f"weight_decay {wd}")
 
 
         def rule(p):
@@ -131,7 +131,7 @@ class LineSearchScheduler():
                 # vf = v.flatten()
                 # gf = g.flatten()
 
-                # logging.warning(
+                # print(
                 #     f"t={t} | "
                 #     f"g[:10]={gf[:10].tolist()} | "
                 #     f"m[:10]={mf[:10].tolist()} | "
@@ -155,7 +155,7 @@ class LineSearchScheduler():
                     # term2 = wd * p                  # weight decay term
                     # df = (term1 - term2).flatten()
 
-                    # logging.warning(
+                    # print(
                     #     f"(g/(|g|+eps) - wd*p)[:10]={df[:10].tolist()} | "
                     #     f"g_norm[:10]={gf[:10].tolist()} | "
                     #     f"wd*p[:10]={(wd*pf)[:10].tolist()} | "
@@ -174,18 +174,18 @@ class LineSearchScheduler():
         """
         # max_d = 0.0
         wd = self.optimizer.param_groups[0].get("weight_decay", 0.0)
-        # logging.warning(f"weight_decay {wd}")
+        # print(f"weight_decay {wd}")
         for group in self.optimizer.param_groups:
             for p in group["params"]:
                 if p.grad is None:
-                    # logging.warning("GRADIENT IS NONE!!! at 0")
+                    # print("GRADIENT IS NONE!!! at 0")
                     continue
                 p.mul_(1 - alpha * wd)
                 p.add_(self.rule(p), alpha=alpha)  
                 
 
     
-        # logging.warning(f"[debug] alpha={alpha}, max|d|={max_d}")
+        # print(f"[debug] alpha={alpha}, max|d|={max_d}")
 
     @torch.no_grad()
     def restore_model(self, alpha):
@@ -193,7 +193,7 @@ class LineSearchScheduler():
         for group in self.optimizer.param_groups:
                 for p in group["params"]:
                     if p.grad is None:
-                        logging.warning("GRADIENT IS NONE!!! at 0")
+                        print("GRADIENT IS NONE!!! at 0")
                         continue
                     p.add_(self.rule(p), alpha=-alpha)
                     p.div_(1 - alpha * wd)
@@ -249,7 +249,7 @@ class LineSearchScheduler():
                     params.append(p)
 
         if len(params) == 0:
-            logging.warning(f"{prefix} no parameters found")
+            print(f"{prefix} no parameters found")
             return
 
         lr = optimizer.param_groups[0]["lr"]
@@ -285,7 +285,7 @@ class LineSearchScheduler():
             diff = (r - o).abs().max().item()
             max_diff = max(max_diff, diff)
 
-        logging.warning(
+        print(
             f"{prefix} max |param diff| = {max_diff:.3e}"
         )
 
@@ -307,7 +307,7 @@ class LineSearchScheduler():
 
 
         self.update_model(alpha)
-        # logging.warning(f"ca, {cached_dirs}")
+        # print(f"ca, {cached_dirs}")
         self.restore_model(alpha)
 
         max_diff = 0.0
@@ -329,7 +329,7 @@ class LineSearchScheduler():
 
         
 
-    def step(self, closure, condition="armijo", c1=0.6, factor=0.5, amax=1.0, amin=1e-6, step=0, interval=100, warmup_length=100, log_dir=None):
+    def step(self, closure, condition="armijo", c1=0.6, factor=0.5, amax=1.0, amin=1e-6, step=0, interval=100, warmup_length=100, log_dir="./"):
         """
         condition: Line Search condition. Option: armijo,
         search_mode: Option: backtracking, forward, interpolate
@@ -419,7 +419,7 @@ class LineSearchScheduler():
         
         if derphi0 > 0: 
             # self.clear_momentum()
-            logging.warning(f"ASCENT!!!, old derphi0 {derphi0}")
+            print(f"ASCENT!!!, old derphi0 {derphi0}")
             self.rule = self.get_potential_update_direction(fallback_to_neg_grad=True)
             inner = 0.0
             with torch.no_grad():
@@ -431,7 +431,7 @@ class LineSearchScheduler():
                             inner -= wd * torch.sum(p.grad * p)
 
             phi0, derphi0 = phi0, inner.detach()
-            logging.warning(f"ASCENT!!!, new derphi0 {derphi0}")
+            print(f"ASCENT!!!, new derphi0 {derphi0}")
             
 
         # xk = [p.detach().clone() for p in self.paras]
@@ -454,10 +454,10 @@ class LineSearchScheduler():
         # ## This can be optimized 
     
         alpha0 = self.line_search_alpha
-        # logging.warning(f"start searching with alpha = {alpha0}, the prev_alpha is {self.prev_alpha}")
+        # print(f"start searching with alpha = {alpha0}, the prev_alpha is {self.prev_alpha}")
 
         if step <= warmup_length:
-            alpha0 = 1
+            alpha0 = 1e-4
             num_search = self.num_search
         else:
             num_search = 1
@@ -489,6 +489,7 @@ class LineSearchScheduler():
         #         param_group['lr'] = alpha
 
         self.line_search_alpha = alpha
+        print("LINESEARCH LR:", alpha)
         # if is_plateau:
         #    for param_group in self.optimizer.param_groups: 
         #             param_group['lr'] = alpha
@@ -545,17 +546,17 @@ def line_search_armijo(f, derphi0, phi0, args=(), c1=1e-4, alpha0=1, num_search=
         return value
 
     use_ddp = dist.is_initialized() 
-    # logging.warning(f"USE DDP {use_ddp}")
+    # print(f"USE DDP {use_ddp}")
     if use_ddp:
             alpha, phi1 = search_bisection_ddp(phi, phi0, derphi0, c1=c1,
                                             old_alpha=alpha0, grow=1/factor, shrink=factor, amax=1, amin=1e-6, num_search=num_search)
             # alpha, phi1 = search_bisection_ddp_visual(phi, phi0, derphi0, c1=c1,
             #                                   old_alpha=alpha0, shrink=factor, grow=1/factor, amax=1, amin=1e-6, num_search=num_search, log_dir=log_dir, global_step=step)
     else:
-            alpha, phi1 = search_bisection(phi, phi0, derphi0, c1=c1,
-                                            old_alpha=alpha0, grow=1/factor, shrink=factor, amax=1, amin=1e-6, num_search=num_search)
-            # alpha, phi1 = search_backtracking_visual(phi, phi0, derphi0, c1=c1,
-            #                                   alpha=alpha0, shrink=factor, plot_path=f"backtracking_{step}.png")
+            # alpha, phi1 = search_bisection(phi, phi0, derphi0, c1=c1,
+            #                                 old_alpha=alpha0, grow=1/factor, shrink=factor, amax=1, amin=1e-6, num_search=num_search)
+            alpha, phi1 = search_bisection_visual(phi, phi0, derphi0, c1=c1,
+                                                          old_alpha=alpha0, shrink=factor, grow=1/factor, amax=1, amin=1e-6, num_search=num_search, log_dir=log_dir, global_step=step)
     
     
     # if search_mode == "backtrack":
@@ -687,12 +688,12 @@ def search_bisection_ddp_visual(phi, phi0, derphi0, c1,
                 [int(armijo_old_work)] if rank == 0 else [0],
                 device=device,
             )
-    # logging.warning(f"[rank {rank}]  Before old armijo_broadcast")
+    # print(f"[rank {rank}]  Before old armijo_broadcast")
     dist.broadcast(armijo_flag, src=0)
-    # logging.warning(f"[rank {rank}]  After old armijo_broadcast")
+    # print(f"[rank {rank}]  After old armijo_broadcast")
     armijo_old_work = bool(armijo_flag.item())
 
-    # # logging.warning(f'line search: old armijo={armijo_old},rank={rank}')
+    # # print(f'line search: old armijo={armijo_old},rank={rank}')
     if is_rank0:
         explored.append((alpha, phi_a))
 
@@ -708,20 +709,20 @@ def search_bisection_ddp_visual(phi, phi0, derphi0, c1,
                     [int(exceed)] if rank == 0 else [0],
                     device=device,
                 )
-                # logging.warning(f"[rank {rank}]  Before  exceed_broadcast")
+                # print(f"[rank {rank}]  Before  exceed_broadcast")
                 dist.broadcast(exceed_flag, src=0)
-                # logging.warning(f"[rank {rank}]  After  exceed_broadcast")
+                # print(f"[rank {rank}]  After  exceed_broadcast")
                 exceed = bool(exceed_flag.item())
                 
-                # logging.warning(f'line search: exceed={exceed},rank={rank}')
+                # print(f'line search: exceed={exceed},rank={rank}')
                 if exceed:
                     break
 
                 new_phi = phi(new_alpha)
                 if is_rank0:
                     explored.append((new_alpha, new_phi))
-                # logging.warning(f'line search: loss={new_phi},rank={rank}')
-                # logging.warning(f'line search: new alpha={new_alpha},rank={rank}')
+                # print(f'line search: loss={new_phi},rank={rank}')
+                # print(f'line search: new alpha={new_alpha},rank={rank}')
 
 
                 if rank == 0:
@@ -730,11 +731,11 @@ def search_bisection_ddp_visual(phi, phi0, derphi0, c1,
                             [int(accept)] if rank == 0 else [0],
                             device=device,
                         )
-                # logging.warning(f"[rank {rank}]  Before  accept_broadcast")
+                # print(f"[rank {rank}]  Before  accept_broadcast")
                 dist.broadcast(accept_flag, src=0)
-                # logging.warning(f"[rank {rank}]  After  accept_broadcast")
+                # print(f"[rank {rank}]  After  accept_broadcast")
                 accept = bool(accept_flag.item())
-                # logging.warning(f'line search: accept={accept},rank={rank}')
+                # print(f'line search: accept={accept},rank={rank}')
                 if accept:
                     break
 
@@ -754,11 +755,11 @@ def search_bisection_ddp_visual(phi, phi0, derphi0, c1,
                     [int(exceed)] if rank == 0 else [0],
                     device=device,
                 )
-                # logging.warning(f"[rank {rank}]  Before  exceed_broadcast")
+                # print(f"[rank {rank}]  Before  exceed_broadcast")
                 dist.broadcast(exceed_flag, src=0)
-                # logging.warning(f"[rank {rank}]  After  exceed_broadcast")
+                # print(f"[rank {rank}]  After  exceed_broadcast")
                 exceed = bool(exceed_flag.item())
-                # logging.warning(f'line search: exceed={exceed},rank={rank}')
+                # print(f'line search: exceed={exceed},rank={rank}')
                 if exceed:
                     break
 
@@ -767,8 +768,8 @@ def search_bisection_ddp_visual(phi, phi0, derphi0, c1,
                 loss_list.append(new_phi)
                 if is_rank0:
                     explored.append((new_alpha, new_phi))
-                # logging.warning(f'line search: loss={new_phi},rank={rank}')
-                # logging.warning(f'line search: new alpha={new_alpha},rank={rank}')
+                # print(f'line search: loss={new_phi},rank={rank}')
+                # print(f'line search: new alpha={new_alpha},rank={rank}')
 
 
                 if rank == 0:
@@ -788,15 +789,15 @@ def search_bisection_ddp_visual(phi, phi0, derphi0, c1,
                         [int(flat_region)] if rank == 0 else [0],
                         device=device
                     )
-                # logging.warning(f"[rank {rank}]  Before  accept_broadcast")
+                # print(f"[rank {rank}]  Before  accept_broadcast")
                 dist.broadcast(accept_flag, src=0)
-                # logging.warning(f"[rank {rank}]  After  accept_broadcast")
+                # print(f"[rank {rank}]  After  accept_broadcast")
                 accept = bool(accept_flag.item())
-                # logging.warning(f'line search: accept={accept},rank={rank}')
+                # print(f'line search: accept={accept},rank={rank}')
                 dist.broadcast(flat_flag, src=0)
                 flat_region = bool(flat_flag.item())
                 # if flat_region:
-                #         logging.warning(f" Flat Region: {flat_region}. loss list: {loss_list}, maxdiff : {max(loss_list) - min(loss_list)}")
+                #         print(f" Flat Region: {flat_region}. loss list: {loss_list}, maxdiff : {max(loss_list) - min(loss_list)}")
                 #         return old_alpha, phi_old 
                 if accept:
                     alpha = new_alpha
@@ -838,7 +839,7 @@ def search_bisection_ddp_visual(phi, phi0, derphi0, c1,
     # Plot (rank0 only)
     # ============================================================
     if is_rank0:
-        # logging.warning(f"phi_vals {phi_vals}")
+        # print(f"phi_vals {phi_vals}")
 
         # -------- Armijo line --------
         armijo_line = phi0_g + c1 * t_vals * derphi0_g
@@ -897,6 +898,102 @@ def search_bisection_ddp_visual(phi, phi0, derphi0, c1,
         plt.close()
 
     return alpha, phi_a
+
+
+def search_bisection_visual(phi, phi0, derphi0, c1,
+                     old_alpha, grow=2.0, shrink=0.5,
+                     amax=1, amin=1e-6, num_search=10,
+                    t_min=0.0, t_max=1e-4, num_points=100, log_dir=None, global_step=0):
+    """Non-DDP visual version of bisection/backtracking search.
+
+    Mirrors `search_bisection_ddp_visual` but without torch.distributed calls.
+    Produces a plot under `log_dir` named `backtracking_ls_{global_step}.png`.
+    Returns chosen (alpha, phi(alpha)).
+    """
+    print("search start")
+    alpha = old_alpha
+    phi_a = phi(alpha)
+    phi_old = phi_a
+    explored = []
+    import os
+    loss_list = [phi0, phi_a]
+    if log_dir is None:
+        log_dir = "."
+    os.makedirs(log_dir, exist_ok=True)
+    plot_path = os.path.join(log_dir, f"backtracking_ls_{global_step}.png")
+
+    # Determine whether old alpha satisfies Armijo
+    armijo_old_work = phi_a <= phi0 + c1 * alpha * derphi0
+    print("find")
+    if armijo_old_work:
+        print("work")
+        explored.append((alpha, phi_a))
+        for _ in range(num_search):
+            print("maybe")
+            new_alpha = alpha * grow
+            if new_alpha >= amax:
+                break
+            new_phi = phi(new_alpha)
+            explored.append((new_alpha, new_phi))
+            if new_phi > phi0 + c1 * new_alpha * derphi0:
+                break
+            alpha = new_alpha
+            phi_a = new_phi
+
+    else:
+        print("no work")
+        explored.append((alpha, phi_a))
+        for _ in range(num_search):
+            print("maybe")
+            new_alpha = alpha * shrink
+            if new_alpha <= amin:
+                break
+            new_phi = phi(new_alpha)
+            loss_list.append(new_phi)
+            explored.append((new_alpha, new_phi))
+            accept = new_phi <= phi0 + c1 * new_alpha * derphi0
+
+
+            if accept:
+                alpha = new_alpha
+                phi_a = new_phi
+                break
+
+
+            alpha = new_alpha
+            phi_a = new_phi
+
+    # Build plot data
+    print("start plot")
+    t_vals = np.linspace(max(1e-12, t_min), min(1.0, t_max), num_points)
+    phi_vals = np.array([phi(float(t)) for t in t_vals])
+
+    # Plot (single-process)
+    armijo_line = phi0 + c1 * t_vals * (derphi0 if not torch.is_tensor(derphi0) else float(derphi0))
+
+    plt.figure(figsize=(8, 6))
+    plt.plot(t_vals, phi_vals, label="phi(t)", linewidth=2)
+    plt.plot(t_vals, armijo_line, "--", label="Armijo line", linewidth=2)
+
+    for i, (a, v) in enumerate(explored):
+        if a <= t_max:
+            plt.scatter(a, v, color="red", s=60)
+            plt.annotate("init" if i == 0 else f"bt {i}", (a, v), textcoords="offset points", xytext=(5, 5))
+
+    if alpha <= t_max:
+        plt.scatter(alpha, phi_a, color="blue", s=120, marker="x", label="chosen alpha")
+
+    plt.xlabel("t (step size)")
+    plt.ylabel("phi(t)")
+    plt.title("Backtracking Line Search Visualization")
+    plt.grid(True)
+    plt.legend()
+    plt.xlim(0.0, t_max)
+    plt.savefig(plot_path, dpi=200)
+    plt.close()
+    print("search end")
+
+    return alpha, phi_a
                 
 
 
@@ -929,12 +1026,12 @@ def search_bisection_ddp(phi, phi0, derphi0, c1,
                 [int(armijo_old_work)] if rank == 0 else [0],
                 device=device,
             )
-    # logging.warning(f"[rank {rank}]  Before old armijo_broadcast")
+    # print(f"[rank {rank}]  Before old armijo_broadcast")
     dist.broadcast(armijo_flag, src=0)
-    # logging.warning(f"[rank {rank}]  After old armijo_broadcast")
+    # print(f"[rank {rank}]  After old armijo_broadcast")
     armijo_old_work = bool(armijo_flag.item())
 
-    # # logging.warning(f'line search: old armijo={armijo_old},rank={rank}')
+    # # print(f'line search: old armijo={armijo_old},rank={rank}')
 
     if armijo_old_work:
             for _ in range(num_search): 
@@ -947,17 +1044,17 @@ def search_bisection_ddp(phi, phi0, derphi0, c1,
                     [int(exceed)] if rank == 0 else [0],
                     device=device,
                 )
-                # logging.warning(f"[rank {rank}]  Before  exceed_broadcast")
+                # print(f"[rank {rank}]  Before  exceed_broadcast")
                 dist.broadcast(exceed_flag, src=0)
-                # logging.warning(f"[rank {rank}]  After  exceed_broadcast")
+                # print(f"[rank {rank}]  After  exceed_broadcast")
                 exceed = bool(exceed_flag.item())
-                # logging.warning(f'line search: exceed={exceed},rank={rank}')
+                # print(f'line search: exceed={exceed},rank={rank}')
                 if exceed:
                     break
 
                 new_phi = phi(new_alpha)
-                # logging.warning(f'line search: loss={new_phi},rank={rank}')
-                # logging.warning(f'line search: new alpha={new_alpha},rank={rank}')
+                # print(f'line search: loss={new_phi},rank={rank}')
+                # print(f'line search: new alpha={new_alpha},rank={rank}')
 
 
                 if rank == 0:
@@ -966,11 +1063,11 @@ def search_bisection_ddp(phi, phi0, derphi0, c1,
                             [int(accept)] if rank == 0 else [0],
                             device=device,
                         )
-                # logging.warning(f"[rank {rank}]  Before  accept_broadcast")
+                # print(f"[rank {rank}]  Before  accept_broadcast")
                 dist.broadcast(accept_flag, src=0)
-                # logging.warning(f"[rank {rank}]  After  accept_broadcast")
+                # print(f"[rank {rank}]  After  accept_broadcast")
                 accept = bool(accept_flag.item())
-                # logging.warning(f'line search: accept={accept},rank={rank}')
+                # print(f'line search: accept={accept},rank={rank}')
                 if accept:
                     break
 
@@ -992,19 +1089,19 @@ def search_bisection_ddp(phi, phi0, derphi0, c1,
                     [int(exceed)] if rank == 0 else [0],
                     device=device,
                 )
-                # logging.warning(f"[rank {rank}]  Before  exceed_broadcast")
+                # print(f"[rank {rank}]  Before  exceed_broadcast")
                 dist.broadcast(exceed_flag, src=0)
-                # logging.warning(f"[rank {rank}]  After  exceed_broadcast")
+                # print(f"[rank {rank}]  After  exceed_broadcast")
                 exceed = bool(exceed_flag.item())
-                # logging.warning(f'line search: exceed={exceed},rank={rank}')
+                # print(f'line search: exceed={exceed},rank={rank}')
                 if exceed:
                     break
 
 
                 new_phi = phi(new_alpha)
                 loss_list.append(new_phi)
-                # logging.warning(f'line search: loss={new_phi},rank={rank}')
-                # logging.warning(f'line search: new alpha={new_alpha},rank={rank}')
+                # print(f'line search: loss={new_phi},rank={rank}')
+                # print(f'line search: new alpha={new_alpha},rank={rank}')
 
 
                 if rank == 0:
@@ -1024,15 +1121,15 @@ def search_bisection_ddp(phi, phi0, derphi0, c1,
                         [int(flat_region)] if rank == 0 else [0],
                         device=device,
                     )
-                # logging.warning(f"[rank {rank}]  Before  accept_broadcast")
+                # print(f"[rank {rank}]  Before  accept_broadcast")
                 dist.broadcast(accept_flag, src=0)
-                # logging.warning(f"[rank {rank}]  After  accept_broadcast")
+                # print(f"[rank {rank}]  After  accept_broadcast")
                 accept = bool(accept_flag.item())
-                # logging.warning(f'line search: accept={accept},rank={rank}')
+                # print(f'line search: accept={accept},rank={rank}')
                 dist.broadcast(flat_flag, src=0)
                 flat_region = bool(flat_flag.item())
                 # if flat_region:
-                #         logging.warning(f" Flat Region: {flat_region}. loss list: {loss_list}, maxdiff : {max(loss_list) - min(loss_list)}")
+                #         print(f" Flat Region: {flat_region}. loss list: {loss_list}, maxdiff : {max(loss_list) - min(loss_list)}")
                 #         return old_alpha, phi_old 
                 if accept:
                     return new_alpha, new_phi
@@ -1051,12 +1148,12 @@ def search_bisection(phi, phi0, derphi0, c1,
 
     alpha = old_alpha
     phi_a = phi(alpha)
-    phi_old = phi_a
-    flat_eps = 5e-2
+    # phi_old = phi_a
+    # flat_eps = 5e-2
 
     armijo_old = phi_a <= phi0 + c1 * alpha * derphi0
-    loss_list = [phi0, phi_a]
-    # logging.warning(f"{armijo_old}, {phi_a}, {phi0}, {alpha}, {derphi0}")
+    # loss_list = [phi0, phi_a]
+    # print(f"{armijo_old}, {phi_a}, {phi0}, {alpha}, {derphi0}")
     if armijo_old:
         for _ in range(num_search): 
         
@@ -1084,21 +1181,21 @@ def search_bisection(phi, phi0, derphi0, c1,
             if new_alpha <= amin:
                 break
             new_phi = phi(new_alpha)
-            loss_list.append(new_phi)
+            # loss_list.append(new_phi)
 
         
             if new_phi <= phi0 + c1 * new_alpha * derphi0:
                 break
 
-            if len(loss_list) >= 3:
-                        rng = max(loss_list) - min(loss_list)
-                        r_range = rng / max(abs(phi_a), 1e-12)
-                        flat_region = r_range <= flat_eps
-            else:
-                        flat_region = False
-            if flat_region:
-                        logging.warning(f" Flat Region: {flat_region}. loss list: {loss_list}, maxdiff : {max(loss_list) - min(loss_list)}")
-                        return old_alpha, phi_old 
+            # if len(loss_list) >= 3:
+            #             rng = max(loss_list) - min(loss_list)
+            #             r_range = rng / max(abs(phi_a), 1e-12)
+            #             # flat_region = r_range <= flat_eps
+            # else:
+                        # flat_region = False
+            # if flat_region:
+            #             print(f" Flat Region: {flat_region}. loss list: {loss_list}, maxdiff : {max(loss_list) - min(loss_list)}")
+            #             return old_alpha, phi_old 
 
             alpha = new_alpha
             phi_a = new_phi
@@ -1157,7 +1254,7 @@ def search_backtracking_visual(
             r_trend = abs(loss_list[-1] - loss_list[0]) / max(abs(phi0), delta)
 
             if (r_range <= flat_eps) and (r_trend <= trend_eps):
-                logging.warning(
+                print(
                     f"[flat-region detected] "
                     f"r_range={r_range:.3e}, r_trend={r_trend:.3e}, "
                     f"return old alpha={old_alpha}"

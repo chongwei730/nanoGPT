@@ -1,0 +1,41 @@
+step 0: train loss 10.9888, val loss 10.9901
+iter 0: loss 10.9924, time 156844.05ms, mfu -100.00%
+iter 10: loss 9.7272, time 1504.03ms, mfu 22.38%
+iter 20: loss 9.4990, time 1503.68ms, mfu 22.38%
+iter 30: loss 8.9279, time 1504.40ms, mfu 22.38%
+iter 40: loss 8.5681, time 1504.11ms, mfu 22.38%
+iter 50: loss 8.0312, time 1507.90ms, mfu 22.38%
+iter 60: loss 7.6980, time 1508.57ms, mfu 22.37%
+iter 70: loss 7.3894, time 1510.86ms, mfu 22.36%
+iter 80: loss 6.9377, time 1513.48ms, mfu 22.35%
+iter 90: loss 6.5901, time 1516.84ms, mfu 22.33%
+iter 100: loss 6.7058, time 132296.21ms, mfu 20.13%
+iter 110: loss 6.7923, time 1531.81ms, mfu 20.31%
+iter 120: loss 6.4267, time 1530.90ms, mfu 20.48%
+iter 130: loss 6.6091, time 1534.01ms, mfu 20.63%
+iter 140: loss 6.4051, time 1536.45ms, mfu 20.75%
+iter 150: loss 6.4637, time 1535.79ms, mfu 20.87%
+iter 160: loss 6.3445, time 1535.02ms, mfu 20.98%
+iter 170: loss 6.1663, time 1538.38ms, mfu 21.07%
+iter 180: loss 6.2293, time 1538.90ms, mfu 21.15%
+iter 190: loss 6.2551, time 1538.88ms, mfu 21.22%
+Traceback (most recent call last):
+  File "/users/9/chen8596/nanoGPT/train_linesearch.py", line 337, in <module>
+    scaler.scale(loss).backward()
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_tensor.py", line 647, in backward
+    torch.autograd.backward(
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/autograd/__init__.py", line 354, in backward
+    _engine_run_backward(
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/autograd/graph.py", line 829, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+KeyboardInterrupt
+[rank0]: Traceback (most recent call last):
+[rank0]:   File "/users/9/chen8596/nanoGPT/train_linesearch.py", line 337, in <module>
+[rank0]:     scaler.scale(loss).backward()
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_tensor.py", line 647, in backward
+[rank0]:     torch.autograd.backward(
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/autograd/__init__.py", line 354, in backward
+[rank0]:     _engine_run_backward(
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/autograd/graph.py", line 829, in _engine_run_backward
+[rank0]:     return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+[rank0]: KeyboardInterrupt

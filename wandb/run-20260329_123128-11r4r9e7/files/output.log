@@ -1,0 +1,29 @@
+LINESEARCH!!!
+LINESEARCH LR: 0.0009765625
+step 0: train loss 10.9892, val loss 10.9905
+iter 0: loss 10.9896, time 159193.97ms, mfu -100.00%
+iter 10: loss 9.1743, time 2929.76ms, mfu 22.98%
+iter 20: loss 8.0970, time 2932.05ms, mfu 22.98%
+iter 30: loss 7.2789, time 2939.02ms, mfu 22.97%
+iter 40: loss 7.2020, time 2949.05ms, mfu 22.96%
+iter 50: loss 6.4739, time 2953.82ms, mfu 22.94%
+Traceback (most recent call last):
+  File "/users/9/chen8596/nanoGPT/train_linesearch.py", line 340, in <module>
+    scaler.scale(loss).backward()
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_tensor.py", line 647, in backward
+    torch.autograd.backward(
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/autograd/__init__.py", line 354, in backward
+    _engine_run_backward(
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/autograd/graph.py", line 829, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+KeyboardInterrupt
+[rank0]: Traceback (most recent call last):
+[rank0]:   File "/users/9/chen8596/nanoGPT/train_linesearch.py", line 340, in <module>
+[rank0]:     scaler.scale(loss).backward()
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_tensor.py", line 647, in backward
+[rank0]:     torch.autograd.backward(
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/autograd/__init__.py", line 354, in backward
+[rank0]:     _engine_run_backward(
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/autograd/graph.py", line 829, in _engine_run_backward
+[rank0]:     return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+[rank0]: KeyboardInterrupt

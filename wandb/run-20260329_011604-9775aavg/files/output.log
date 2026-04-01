@@ -1,0 +1,65 @@
+LINESEARCH!!!
+Traceback (most recent call last):
+  File "/users/9/chen8596/nanoGPT/train_linesearch.py", line 293, in <module>
+    scheduler.step(line_search_closure, c1=c1, step=iter_num, interval=linesearch_interval, condition="armijo")
+  File "/users/9/chen8596/nanoGPT/lr_sched.py", line 367, in step
+    loss = closure(require_grad=True)
+  File "/users/9/chen8596/nanoGPT/train_linesearch.py", line 284, in line_search_closure
+    (loss_ls / accum_steps).backward()
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_tensor.py", line 647, in backward
+    torch.autograd.backward(
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/autograd/__init__.py", line 354, in backward
+    _engine_run_backward(
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/autograd/graph.py", line 829, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/autograd/function.py", line 311, in apply
+    return user_fn(self, *args)
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_functorch/_aot_autograd/runtime_wrappers.py", line 2259, in backward
+    return impl_fn()
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_functorch/_aot_autograd/runtime_wrappers.py", line 2245, in impl_fn
+    out = CompiledFunction._backward_impl(ctx, all_args)
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_functorch/_aot_autograd/runtime_wrappers.py", line 2376, in _backward_impl
+    out = call_func_at_runtime_with_args(
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_functorch/_aot_autograd/utils.py", line 126, in call_func_at_runtime_with_args
+    out = normalize_as_list(f(args))
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_dynamo/eval_frame.py", line 929, in _fn
+    return fn(*args, **kwargs)
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_inductor/output_code.py", line 584, in __call__
+    return self.current_callable(inputs)
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_inductor/utils.py", line 2716, in run
+    out = model(new_inputs)
+  File "/tmp/torchinductor_chen8596/yj/cyj7hhg6xfwd3jewl2fdxnae4kguiypom6cq7jhqksbxnrr6fqr7.py", line 160, in call
+    buf1 = empty_strided_cuda((32, 1024, 50304), (51511296, 50304, 1), torch.float32)
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 6.14 GiB. GPU 0 has a total capacity of 44.42 GiB of which 6.03 GiB is free. Including non-PyTorch memory, this process has 38.39 GiB memory in use. Of the allocated memory 32.40 GiB is allocated by PyTorch, and 5.56 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+[rank0]: Traceback (most recent call last):
+[rank0]:   File "/users/9/chen8596/nanoGPT/train_linesearch.py", line 293, in <module>
+[rank0]:     scheduler.step(line_search_closure, c1=c1, step=iter_num, interval=linesearch_interval, condition="armijo")
+[rank0]:   File "/users/9/chen8596/nanoGPT/lr_sched.py", line 367, in step
+[rank0]:     loss = closure(require_grad=True)
+[rank0]:   File "/users/9/chen8596/nanoGPT/train_linesearch.py", line 284, in line_search_closure
+[rank0]:     (loss_ls / accum_steps).backward()
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_tensor.py", line 647, in backward
+[rank0]:     torch.autograd.backward(
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/autograd/__init__.py", line 354, in backward
+[rank0]:     _engine_run_backward(
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/autograd/graph.py", line 829, in _engine_run_backward
+[rank0]:     return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/autograd/function.py", line 311, in apply
+[rank0]:     return user_fn(self, *args)
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_functorch/_aot_autograd/runtime_wrappers.py", line 2259, in backward
+[rank0]:     return impl_fn()
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_functorch/_aot_autograd/runtime_wrappers.py", line 2245, in impl_fn
+[rank0]:     out = CompiledFunction._backward_impl(ctx, all_args)
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_functorch/_aot_autograd/runtime_wrappers.py", line 2376, in _backward_impl
+[rank0]:     out = call_func_at_runtime_with_args(
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_functorch/_aot_autograd/utils.py", line 126, in call_func_at_runtime_with_args
+[rank0]:     out = normalize_as_list(f(args))
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_dynamo/eval_frame.py", line 929, in _fn
+[rank0]:     return fn(*args, **kwargs)
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_inductor/output_code.py", line 584, in __call__
+[rank0]:     return self.current_callable(inputs)
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_inductor/utils.py", line 2716, in run
+[rank0]:     out = model(new_inputs)
+[rank0]:   File "/tmp/torchinductor_chen8596/yj/cyj7hhg6xfwd3jewl2fdxnae4kguiypom6cq7jhqksbxnrr6fqr7.py", line 160, in call
+[rank0]:     buf1 = empty_strided_cuda((32, 1024, 50304), (51511296, 50304, 1), torch.float32)
+[rank0]: torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 6.14 GiB. GPU 0 has a total capacity of 44.42 GiB of which 6.03 GiB is free. Including non-PyTorch memory, this process has 38.39 GiB memory in use. Of the allocated memory 32.40 GiB is allocated by PyTorch, and 5.56 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)

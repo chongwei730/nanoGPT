@@ -1,0 +1,47 @@
+step 0: train loss 10.9888, val loss 10.9901
+iter 0: loss 10.9925, time 183230.56ms, mfu -100.00%
+iter 10: loss 9.7272, time 1502.17ms, mfu 22.41%
+iter 20: loss 9.4991, time 1503.76ms, mfu 22.41%
+iter 30: loss 8.9278, time 1506.38ms, mfu 22.40%
+iter 40: loss 8.5682, time 1506.08ms, mfu 22.40%
+iter 50: loss 8.0313, time 1506.23ms, mfu 22.39%
+iter 60: loss 7.6986, time 1508.89ms, mfu 22.38%
+iter 70: loss 7.3930, time 1510.25ms, mfu 22.38%
+iter 80: loss 6.9420, time 1515.91ms, mfu 22.36%
+iter 90: loss 6.5961, time 1517.46ms, mfu 22.34%
+Traceback (most recent call last):
+  File "/users/9/chen8596/nanoGPT/train_linesearch.py", line 290, in <module>
+    scheduler.step(line_search_closure, c1=c1, step=iter_num, interval=linesearch_interval, condition="armijo")
+  File "/users/9/chen8596/nanoGPT/lr_sched.py", line 466, in step
+    alpha, fc, _ = line_search_armijo(
+  File "/users/9/chen8596/nanoGPT/lr_sched.py", line 550, in line_search_armijo
+    alpha, phi1 = search_bisection_ddp(phi, phi0, derphi0, c1=c1,
+  File "/users/9/chen8596/nanoGPT/lr_sched.py", line 1004, in search_bisection_ddp
+    new_phi = phi(new_alpha)
+  File "/users/9/chen8596/nanoGPT/lr_sched.py", line 544, in phi
+    value = f(alpha1)
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/utils/_contextlib.py", line 120, in decorate_context
+    return func(*args, **kwargs)
+  File "/users/9/chen8596/nanoGPT/lr_sched.py", line 442, in phi
+    val = closure(require_grad=False)
+  File "/users/9/chen8596/nanoGPT/train_linesearch.py", line 279, in line_search_closure
+    total_loss += loss_ls.item()
+KeyboardInterrupt
+[rank0]: Traceback (most recent call last):
+[rank0]:   File "/users/9/chen8596/nanoGPT/train_linesearch.py", line 290, in <module>
+[rank0]:     scheduler.step(line_search_closure, c1=c1, step=iter_num, interval=linesearch_interval, condition="armijo")
+[rank0]:   File "/users/9/chen8596/nanoGPT/lr_sched.py", line 466, in step
+[rank0]:     alpha, fc, _ = line_search_armijo(
+[rank0]:   File "/users/9/chen8596/nanoGPT/lr_sched.py", line 550, in line_search_armijo
+[rank0]:     alpha, phi1 = search_bisection_ddp(phi, phi0, derphi0, c1=c1,
+[rank0]:   File "/users/9/chen8596/nanoGPT/lr_sched.py", line 1004, in search_bisection_ddp
+[rank0]:     new_phi = phi(new_alpha)
+[rank0]:   File "/users/9/chen8596/nanoGPT/lr_sched.py", line 544, in phi
+[rank0]:     value = f(alpha1)
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/utils/_contextlib.py", line 120, in decorate_context
+[rank0]:     return func(*args, **kwargs)
+[rank0]:   File "/users/9/chen8596/nanoGPT/lr_sched.py", line 442, in phi
+[rank0]:     val = closure(require_grad=False)
+[rank0]:   File "/users/9/chen8596/nanoGPT/train_linesearch.py", line 279, in line_search_closure
+[rank0]:     total_loss += loss_ls.item()
+[rank0]: KeyboardInterrupt

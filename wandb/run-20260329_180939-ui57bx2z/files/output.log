@@ -1,0 +1,212 @@
+step 0: train loss 10.9886, val loss 10.9897
+iter 0: loss 10.9733, time 35599.80ms, mfu -100.00%
+iter 10: loss 9.4048, time 2931.70ms, mfu 22.97%
+iter 20: loss 8.5075, time 2936.65ms, mfu 22.96%
+iter 30: loss 7.4450, time 2939.40ms, mfu 22.96%
+iter 40: loss 7.4484, time 2942.27ms, mfu 22.95%
+iter 50: loss 6.8761, time 2949.41ms, mfu 22.94%
+iter 60: loss 6.5621, time 2950.74ms, mfu 22.93%
+iter 70: loss 6.4219, time 2950.97ms, mfu 22.91%
+iter 80: loss 6.2438, time 2957.09ms, mfu 22.90%
+iter 90: loss 6.4652, time 2963.91ms, mfu 22.88%
+step 100: train loss 6.1976, val loss 6.2011
+saving checkpoint to /scratch.global/chen8596/out
+iter 100: loss 6.3054, time 27895.84ms, mfu 20.83%
+iter 110: loss 6.0761, time 2969.50ms, mfu 21.02%
+iter 120: loss 6.0450, time 2971.71ms, mfu 21.18%
+iter 130: loss 5.8473, time 2973.03ms, mfu 21.33%
+iter 140: loss 5.9587, time 2975.79ms, mfu 21.46%
+iter 150: loss 5.8548, time 2977.00ms, mfu 21.57%
+iter 160: loss 5.7162, time 2980.33ms, mfu 21.68%
+iter 170: loss 5.6975, time 2982.16ms, mfu 21.77%
+iter 180: loss 5.8031, time 2983.43ms, mfu 21.85%
+iter 190: loss 5.5227, time 2991.19ms, mfu 21.91%
+step 200: train loss 5.6472, val loss 5.6517
+saving checkpoint to /scratch.global/chen8596/out
+iter 200: loss 5.5895, time 27431.09ms, mfu 19.97%
+iter 210: loss 5.6753, time 2993.95ms, mfu 20.22%
+iter 220: loss 5.5040, time 2996.29ms, mfu 20.44%
+iter 230: loss 5.4550, time 3015.86ms, mfu 20.63%
+iter 240: loss 5.4394, time 3028.57ms, mfu 20.79%
+iter 250: loss 5.6418, time 3050.17ms, mfu 20.92%
+iter 260: loss 5.5097, time 3058.50ms, mfu 21.03%
+iter 270: loss 5.3239, time 3071.87ms, mfu 21.12%
+iter 280: loss 5.2151, time 3074.06ms, mfu 21.20%
+iter 290: loss 5.2845, time 3073.90ms, mfu 21.27%
+step 300: train loss 5.2182, val loss 5.2096
+saving checkpoint to /scratch.global/chen8596/out
+iter 300: loss 5.2583, time 27549.86ms, mfu 19.39%
+iter 310: loss 4.9999, time 3092.58ms, mfu 19.62%
+iter 320: loss 4.9485, time 3069.26ms, mfu 19.86%
+iter 330: loss 5.1401, time 3059.92ms, mfu 20.07%
+iter 340: loss 5.0425, time 3081.14ms, mfu 20.25%
+iter 350: loss 5.1729, time 3101.68ms, mfu 20.39%
+iter 360: loss 5.0516, time 3114.86ms, mfu 20.52%
+iter 370: loss 4.9793, time 3154.29ms, mfu 20.60%
+iter 380: loss 4.8734, time 3159.55ms, mfu 20.67%
+iter 390: loss 4.8061, time 3160.79ms, mfu 20.73%
+step 400: train loss 4.8762, val loss 4.8725
+saving checkpoint to /scratch.global/chen8596/out
+iter 400: loss 4.7634, time 27248.73ms, mfu 18.91%
+iter 410: loss 4.8942, time 3152.19ms, mfu 19.15%
+iter 420: loss 4.9512, time 3113.85ms, mfu 19.40%
+iter 430: loss 5.0446, time 3120.74ms, mfu 19.62%
+Traceback (most recent call last):
+  File "/users/9/chen8596/nanoGPT/train.py", line 300, in <module>
+    logits, loss = model(X, Y)
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/nn/parallel/distributed.py", line 1648, in forward
+    else self._run_ddp_forward(*inputs, **kwargs)
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/nn/parallel/distributed.py", line 1474, in _run_ddp_forward
+    return self.module(*inputs, **kwargs)  # type: ignore[index]
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_dynamo/eval_frame.py", line 375, in __call__
+    return super().__call__(*args, **kwargs)
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_dynamo/eval_frame.py", line 736, in compile_wrapper
+    return fn(*args, **kwargs)
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/users/9/chen8596/nanoGPT/model.py", line 170, in forward
+    def forward(self, idx, targets=None):
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_dynamo/eval_frame.py", line 375, in __call__
+    return super().__call__(*args, **kwargs)
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_dynamo/eval_frame.py", line 929, in _fn
+    return fn(*args, **kwargs)
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/fx/graph_module.py", line 848, in call_wrapped
+    return self._wrapped_call(self, *args, **kwargs)
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/fx/graph_module.py", line 411, in __call__
+    return super(self.cls, obj).__call__(*args, **kwargs)  # type: ignore[misc]
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "<eval_with_key>.257", line 97, in forward
+    submod_5 = self.compiled_submod_5(getitem_8, l_self_modules_transformer_modules_h_modules_4_modules_attn_modules_c_attn_parameters_weight_, l_self_modules_transformer_modules_h_modules_4_modules_attn_modules_c_proj_parameters_weight_, getitem_9, l_self_modules_transformer_modules_h_modules_4_modules_ln_2_parameters_weight_, l_self_modules_transformer_modules_h_modules_4_modules_mlp_modules_c_fc_parameters_weight_, l_self_modules_transformer_modules_h_modules_4_modules_mlp_modules_c_proj_parameters_weight_, l_self_modules_transformer_modules_h_modules_5_modules_ln_1_parameters_weight_);  getitem_8 = l_self_modules_transformer_modules_h_modules_4_modules_attn_modules_c_attn_parameters_weight_ = l_self_modules_transformer_modules_h_modules_4_modules_attn_modules_c_proj_parameters_weight_ = getitem_9 = l_self_modules_transformer_modules_h_modules_4_modules_ln_2_parameters_weight_ = l_self_modules_transformer_modules_h_modules_4_modules_mlp_modules_c_fc_parameters_weight_ = l_self_modules_transformer_modules_h_modules_4_modules_mlp_modules_c_proj_parameters_weight_ = l_self_modules_transformer_modules_h_modules_5_modules_ln_1_parameters_weight_ = None
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_dynamo/backends/distributed.py", line 191, in forward
+    x = self.submod(*args)
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_dynamo/eval_frame.py", line 929, in _fn
+    return fn(*args, **kwargs)
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_functorch/aot_autograd.py", line 1241, in forward
+    return compiled_fn(full_args)
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_functorch/_aot_autograd/runtime_wrappers.py", line 370, in runtime_wrapper
+    all_outs = call_func_at_runtime_with_args(
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_functorch/_aot_autograd/utils.py", line 126, in call_func_at_runtime_with_args
+    out = normalize_as_list(f(args))
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_functorch/_aot_autograd/utils.py", line 100, in g
+    return f(*args)
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/autograd/function.py", line 576, in apply
+    return super().apply(*args, **kwargs)  # type: ignore[misc]
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_functorch/_aot_autograd/runtime_wrappers.py", line 2074, in forward
+    fw_outs = call_func_at_runtime_with_args(
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_functorch/_aot_autograd/utils.py", line 126, in call_func_at_runtime_with_args
+    out = normalize_as_list(f(args))
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_functorch/_aot_autograd/runtime_wrappers.py", line 659, in wrapper
+    return compiled_fn(runtime_args)
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_functorch/_aot_autograd/runtime_wrappers.py", line 556, in wrapper
+    return compiled_fn(runtime_args)
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_functorch/_aot_autograd/runtime_wrappers.py", line 750, in inner_fn
+    outs = compiled_fn(args)
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_inductor/output_code.py", line 584, in __call__
+    return self.current_callable(inputs)
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_inductor/utils.py", line 2716, in run
+    out = model(new_inputs)
+  File "/tmp/torchinductor_chen8596/od/cod2whtz3uvzuchmnyiissi73d2cpaopcxdlm5h74372ewea2ksy.py", line 430, in call
+    buf3 = torch.ops.aten._scaled_dot_product_flash_attention.default(reinterpret_tensor(buf2, (12, 12, 1024, 64), (2359296, 64, 2304, 1), 0), reinterpret_tensor(buf2, (12, 12, 1024, 64), (2359296, 64, 2304, 1), 768), reinterpret_tensor(buf2, (12, 12, 1024, 64), (2359296, 64, 2304, 1), 1536), 0.0, True, scale=0.125)
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_ops.py", line 829, in __call__
+    return self._op(*args, **kwargs)
+KeyboardInterrupt
+[rank0]: Traceback (most recent call last):
+[rank0]:   File "/users/9/chen8596/nanoGPT/train.py", line 300, in <module>
+[rank0]:     logits, loss = model(X, Y)
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+[rank0]:     return self._call_impl(*args, **kwargs)
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+[rank0]:     return forward_call(*args, **kwargs)
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/nn/parallel/distributed.py", line 1648, in forward
+[rank0]:     else self._run_ddp_forward(*inputs, **kwargs)
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/nn/parallel/distributed.py", line 1474, in _run_ddp_forward
+[rank0]:     return self.module(*inputs, **kwargs)  # type: ignore[index]
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_dynamo/eval_frame.py", line 375, in __call__
+[rank0]:     return super().__call__(*args, **kwargs)
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+[rank0]:     return self._call_impl(*args, **kwargs)
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+[rank0]:     return forward_call(*args, **kwargs)
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_dynamo/eval_frame.py", line 736, in compile_wrapper
+[rank0]:     return fn(*args, **kwargs)
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+[rank0]:     return self._call_impl(*args, **kwargs)
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+[rank0]:     return forward_call(*args, **kwargs)
+[rank0]:   File "/users/9/chen8596/nanoGPT/model.py", line 170, in forward
+[rank0]:     def forward(self, idx, targets=None):
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_dynamo/eval_frame.py", line 375, in __call__
+[rank0]:     return super().__call__(*args, **kwargs)
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+[rank0]:     return self._call_impl(*args, **kwargs)
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+[rank0]:     return forward_call(*args, **kwargs)
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_dynamo/eval_frame.py", line 929, in _fn
+[rank0]:     return fn(*args, **kwargs)
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/fx/graph_module.py", line 848, in call_wrapped
+[rank0]:     return self._wrapped_call(self, *args, **kwargs)
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/fx/graph_module.py", line 411, in __call__
+[rank0]:     return super(self.cls, obj).__call__(*args, **kwargs)  # type: ignore[misc]
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+[rank0]:     return self._call_impl(*args, **kwargs)
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+[rank0]:     return forward_call(*args, **kwargs)
+[rank0]:   File "<eval_with_key>.257", line 97, in forward
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+[rank0]:     return self._call_impl(*args, **kwargs)
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+[rank0]:     return forward_call(*args, **kwargs)
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_dynamo/backends/distributed.py", line 191, in forward
+[rank0]:     x = self.submod(*args)
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_dynamo/eval_frame.py", line 929, in _fn
+[rank0]:     return fn(*args, **kwargs)
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_functorch/aot_autograd.py", line 1241, in forward
+[rank0]:     return compiled_fn(full_args)
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_functorch/_aot_autograd/runtime_wrappers.py", line 370, in runtime_wrapper
+[rank0]:     all_outs = call_func_at_runtime_with_args(
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_functorch/_aot_autograd/utils.py", line 126, in call_func_at_runtime_with_args
+[rank0]:     out = normalize_as_list(f(args))
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_functorch/_aot_autograd/utils.py", line 100, in g
+[rank0]:     return f(*args)
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/autograd/function.py", line 576, in apply
+[rank0]:     return super().apply(*args, **kwargs)  # type: ignore[misc]
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_functorch/_aot_autograd/runtime_wrappers.py", line 2074, in forward
+[rank0]:     fw_outs = call_func_at_runtime_with_args(
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_functorch/_aot_autograd/utils.py", line 126, in call_func_at_runtime_with_args
+[rank0]:     out = normalize_as_list(f(args))
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_functorch/_aot_autograd/runtime_wrappers.py", line 659, in wrapper
+[rank0]:     return compiled_fn(runtime_args)
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_functorch/_aot_autograd/runtime_wrappers.py", line 556, in wrapper
+[rank0]:     return compiled_fn(runtime_args)
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_functorch/_aot_autograd/runtime_wrappers.py", line 750, in inner_fn
+[rank0]:     outs = compiled_fn(args)
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_inductor/output_code.py", line 584, in __call__
+[rank0]:     return self.current_callable(inputs)
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_inductor/utils.py", line 2716, in run
+[rank0]:     out = model(new_inputs)
+[rank0]:   File "/tmp/torchinductor_chen8596/od/cod2whtz3uvzuchmnyiissi73d2cpaopcxdlm5h74372ewea2ksy.py", line 430, in call
+[rank0]:     buf3 = torch.ops.aten._scaled_dot_product_flash_attention.default(reinterpret_tensor(buf2, (12, 12, 1024, 64), (2359296, 64, 2304, 1), 0), reinterpret_tensor(buf2, (12, 12, 1024, 64), (2359296, 64, 2304, 1), 768), reinterpret_tensor(buf2, (12, 12, 1024, 64), (2359296, 64, 2304, 1), 1536), 0.0, True, scale=0.125)
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_ops.py", line 829, in __call__
+[rank0]:     return self._op(*args, **kwargs)
+[rank0]: KeyboardInterrupt

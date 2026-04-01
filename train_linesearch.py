@@ -21,7 +21,7 @@ import time
 import math
 import pickle
 from contextlib import nullcontext
-from .lr_sched import LineSearchScheduler
+from lr_sched import LineSearchScheduler
 
 import numpy as np
 import torch
@@ -33,7 +33,7 @@ from model import GPTConfig, GPT
 # -----------------------------------------------------------------------------
 # default config values designed to train a gpt2 (124M) on OpenWebText
 # I/O
-out_dir = 'out'
+out_dir = '/scratch.global/chen8596/out'
 eval_interval = 2000
 log_interval = 1
 eval_iters = 200
@@ -56,16 +56,16 @@ n_embd = 768
 dropout = 0.0 # for pretraining 0 is good, for finetuning try 0.1+
 bias = False # do we use bias inside LayerNorm and Linear layers?
 # adamw optimizer
-learning_rate = 6e-4 # max learning rate
-max_iters = 600000 # total number of training iterations
+learning_rate = 1e-6 # max learning rate
+max_iters = 10000 # total number of training iterations
 weight_decay = 1e-1
 beta1 = 0.9
 beta2 = 0.95
 grad_clip = 1.0 # clip gradients at this value, or disable if == 0.0
 # learning rate decay settings
 decay_lr = True # whether to decay the learning rate
-warmup_iters = 2000 # how many steps to warm up for
-lr_decay_iters = 600000 # should be ~= max_iters per Chinchilla
+warmup_iters = 100  # how many steps to warm up for
+lr_decay_iters = 10000 # should be ~= max_iters per Chinchilla
 min_lr = 6e-5 # minimum learning rate, should be ~= learning_rate/10 per Chinchilla
 # DDP settings
 backend = 'nccl' # 'nccl', 'gloo', etc.
@@ -113,14 +113,17 @@ ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torc
 ctx = nullcontext() if device_type == 'cpu' else torch.amp.autocast(device_type=device_type, dtype=ptdtype)
 
 # poor man's data loader
-data_dir = os.path.join('data', dataset)
-def get_batch(split):
+data_dir = os.path.join('/scratch.global/chen8596/nanogpt_data', dataset)
+train_data = np.memmap(os.path.join(data_dir, 'train.bin'), dtype=np.uint16, mode='r')
+val_data = np.memmap(os.path.join(data_dir, 'val.bin'), dtype=np.uint16, mode='r')
+def get_batch_linesearch(split, mode=False):
+        
     # We recreate np.memmap every batch to avoid a memory leak, as per
     # https://stackoverflow.com/questions/45132940/numpy-memmap-memory-usage-want-to-iterate-once/61472122#61472122
     if split == 'train':
-        data = np.memmap(os.path.join(data_dir, 'train.bin'), dtype=np.uint16, mode='r')
+        data = train_data
     else:
-        data = np.memmap(os.path.join(data_dir, 'val.bin'), dtype=np.uint16, mode='r')
+        data = val_data
     ix = torch.randint(len(data) - block_size, (batch_size,))
     x = torch.stack([torch.from_numpy((data[i:i+block_size]).astype(np.int64)) for i in ix])
     y = torch.stack([torch.from_numpy((data[i+1:i+1+block_size]).astype(np.int64)) for i in ix])
@@ -197,7 +200,7 @@ model.to(device)
 scaler = torch.cuda.amp.GradScaler(enabled=(dtype == 'float16'))
 
 # optimizer
-optimizer = model.configure_optimizers(weight_decay, learning_rate, (beta1, beta2), device_type)
+optimizer = model.configure_optimizers(weight_decay, 1e-6, (beta1, beta2), device_type)
 if init_from == 'resume':
     optimizer.load_state_dict(checkpoint['optimizer'])
 checkpoint = None # free up memory
@@ -220,7 +223,7 @@ def estimate_loss():
     for split in ['train', 'val']:
         losses = torch.zeros(eval_iters)
         for k in range(eval_iters):
-            X, Y = get_batch(split)
+            X, Y = get_batch_linesearch(split)
             with ctx:
                 logits, loss = model(X, Y)
             losses[k] = loss.item()
@@ -236,21 +239,12 @@ scheduler = LineSearchScheduler(optimizer=optimizer,
                                 injection=True, 
                                 search_mode="bisection", 
                                 warmup_length=warmup_iters)
+linesearch_interval = 1000
+accum_steps = 32
+c1 = 0.01
 
 # learning rate decay scheduler (cosine with warmup)
 
-def get_lr_cosine(it):
-    # 1) linear warmup for warmup_iters steps
-    if it < warmup_iters:
-        return learning_rate * (it + 1) / (warmup_iters + 1)
-    # 2) if it > lr_decay_iters, return min learning rate
-    if it > lr_decay_iters:
-        return min_lr
-    # 3) in between, use cosine decay down to min learning rate
-    decay_ratio = (it - warmup_iters) / (lr_decay_iters - warmup_iters)
-    assert 0 <= decay_ratio <= 1
-    coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio)) # coeff ranges 0..1
-    return min_lr + coeff * (learning_rate - min_lr)
 
 # logging
 if wandb_log and master_process:
@@ -258,18 +252,47 @@ if wandb_log and master_process:
     wandb.init(project=wandb_project, name=wandb_run_name, config=config)
 
 # training loop
-X, Y = get_batch('train') # fetch the very first batch
+X, Y = get_batch_linesearch('train') # fetch the very first batch
 
 t0 = time.time()
 local_iter_num = 0 # number of iterations in the lifetime of this process
 raw_model = model.module if ddp else model # unwrap DDP container if needed
 running_mfu = -1.0
 while True:
+    # print(iter_num, linesearch_interval, warmup_iters)
+    if iter_num % linesearch_interval == 0 or (iter_num <= warmup_iters and iter_num % warmup_iters == 0):
+        print("LINESEARCH!!!")
+        fixed_batches = []
+        for i in range(accum_steps):
+            X_ls, Y_ls = get_batch_linesearch("train")
+            fixed_batches.append((X_ls, Y_ls))
 
-    # determine and set the learning rate for this iteration
-    lr = get_lr_cosine(iter_num) if decay_lr else learning_rate
-    for param_group in optimizer.param_groups:
-        param_group['lr'] = lr
+        def make_closure():
+            def line_search_closure(require_grad=False):
+                # optimizer.zero_grad()
+                device = next(model.parameters()).device
+                total_loss = torch.zeros((), device=device)
+
+                for x_ls, y_ls in fixed_batches:
+                            # x_ls = x_ls.to(device)
+                            # y_ls = y_ls.to(device)
+                            outputs_ls, loss_ls = model(x_ls, y_ls)
+  
+
+                            total_loss += loss_ls
+                            if require_grad:
+                                (loss_ls / accum_steps).backward() 
+
+                avg_loss = total_loss / accum_steps
+                return avg_loss.item()
+            return line_search_closure
+        line_search_closure = make_closure()
+
+            
+    c1_use = c1 + (1 - c1) * (iter_num / max_iters)
+    scheduler.step(line_search_closure, c1=c1_use, step=iter_num, interval=linesearch_interval, condition="armijo", warmup_length=warmup_iters)
+    lr = optimizer.param_groups[0]['lr']
+
 
     # evaluate the loss on train/val sets and write checkpoints
     if iter_num % eval_interval == 0 and master_process:
@@ -312,7 +335,7 @@ while True:
             logits, loss = model(X, Y)
             loss = loss / gradient_accumulation_steps # scale the loss to account for gradient accumulation
         # immediately async prefetch next batch while model is doing the forward pass on the GPU
-        X, Y = get_batch('train')
+        X, Y = get_batch_linesearch('train')
         # backward pass, with gradient scaling if training in fp16
         scaler.scale(loss).backward()
     # clip the gradient

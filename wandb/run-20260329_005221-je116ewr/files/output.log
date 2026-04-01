@@ -1,0 +1,28 @@
+Traceback (most recent call last):
+  File "/users/9/chen8596/nanoGPT/train_linesearch.py", line 292, in <module>
+    scheduler.step(line_search_closure, c1=c1, step=iter_num, interval=linesearch_interval, condition="armijo")
+  File "/users/9/chen8596/nanoGPT/lr_sched.py", line 367, in step
+    loss = closure(require_grad=True)
+  File "/users/9/chen8596/nanoGPT/train_linesearch.py", line 283, in line_search_closure
+    (loss_ls / accum_steps).backward()
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_tensor.py", line 647, in backward
+    torch.autograd.backward(
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/autograd/__init__.py", line 354, in backward
+    _engine_run_backward(
+  File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/autograd/graph.py", line 829, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+KeyboardInterrupt
+[rank0]: Traceback (most recent call last):
+[rank0]:   File "/users/9/chen8596/nanoGPT/train_linesearch.py", line 292, in <module>
+[rank0]:     scheduler.step(line_search_closure, c1=c1, step=iter_num, interval=linesearch_interval, condition="armijo")
+[rank0]:   File "/users/9/chen8596/nanoGPT/lr_sched.py", line 367, in step
+[rank0]:     loss = closure(require_grad=True)
+[rank0]:   File "/users/9/chen8596/nanoGPT/train_linesearch.py", line 283, in line_search_closure
+[rank0]:     (loss_ls / accum_steps).backward()
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/_tensor.py", line 647, in backward
+[rank0]:     torch.autograd.backward(
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/autograd/__init__.py", line 354, in backward
+[rank0]:     _engine_run_backward(
+[rank0]:   File "/users/9/chen8596/miniconda3/envs/nanogpt/lib/python3.9/site-packages/torch/autograd/graph.py", line 829, in _engine_run_backward
+[rank0]:     return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+[rank0]: KeyboardInterrupt
