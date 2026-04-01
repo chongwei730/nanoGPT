@@ -146,6 +146,7 @@ class LineSearchScheduler():
                 m_hat = m_new / (1 - beta1 ** t)
                 v_hat = v_new / (1 - beta2 ** t)
 
+
                 return -m_hat / (v_hat.sqrt() + eps) 
             else:
                     # gf = g.flatten()
@@ -362,21 +363,84 @@ class LineSearchScheduler():
                 param_group['lr'] = lr 
             return
 
-
         self.optimizer.zero_grad(set_to_none=True)
+
         loss = closure(require_grad=True)
+
         self.rule = self.get_potential_update_direction()
 
         inner = 0.0
+
+        # ===== 统计量 =====
+        grad_sq = 0.0
+        dir_sq = 0.0
+        param_sq = 0.0
+        dot_gd = 0.0
+        dot_gp = 0.0
+
+        max_grad = 0.0
+        max_dir = 0.0
+
         with torch.no_grad():
             for group in self.optimizer.param_groups:
-                    wd = group.get("weight_decay", 0.0)
-                    for p in group["params"]:
-                        if p.grad is None:
-                            continue     
-                        inner += torch.sum(p.grad * self.rule(p))
-                        inner -= wd * torch.sum(p.grad * p)
-        phi0, derphi0 = loss, inner.detach()
+                wd = group.get("weight_decay", 0.0)
+
+                for p in group["params"]:
+                    if p.grad is None:
+                        continue
+
+                    g = p.grad
+                    d = self.rule(p)
+
+                    # ===== norm 统计 =====
+                    grad_sq += torch.sum(g * g).item()
+                    dir_sq += torch.sum(d * d).item()
+                    param_sq += torch.sum(p * p).item()
+
+                    # ===== dot product =====
+                    gd = torch.sum(g * d).item()
+                    gp = torch.sum(g * p).item()
+
+                    dot_gd += gd
+                    dot_gp += gp
+
+                    # ===== max element =====
+                    max_grad = max(max_grad, g.abs().max().item())
+                    max_dir = max(max_dir, d.abs().max().item())
+
+        # ===== 最终统计 =====
+        grad_norm = grad_sq ** 0.5
+        dir_norm = dir_sq ** 0.5
+        param_norm = param_sq ** 0.5
+
+        # cosine 相似度
+        cos_gd = dot_gd / (grad_norm * dir_norm + 1e-12)
+
+        # 原始 derphi0（含 weight decay）
+        inner = dot_gd - wd * dot_gp
+
+        phi0, derphi0 = loss, inner
+
+        # ===== 打印 =====
+        print("\n========== Line Search Debug ==========")
+        print(f"loss (phi0): {phi0}")
+        print(f"derphi0: {derphi0}")
+
+        print("\n--- Norms ---")
+        print(f"grad_norm: {grad_norm:.6f}")
+        print(f"dir_norm:  {dir_norm:.6f}")
+        print(f"param_norm:{param_norm:.6f}")
+
+        print("\n--- Dot Products ---")
+        print(f"g·d: {dot_gd:.6f}")
+        print(f"g·p: {dot_gp:.6f}")
+        print(f"cos(g,d): {cos_gd:.6f}")
+
+        print("\n--- Max Values ---")
+        print(f"max|grad|: {max_grad:.6f}")
+        print(f"max|dir|:  {max_dir:.6f}")
+
+        print("======================================\n")
         # loss_sum = 0
 
         # for _ in range(self.K):
@@ -457,7 +521,7 @@ class LineSearchScheduler():
         # print(f"start searching with alpha = {alpha0}, the prev_alpha is {self.prev_alpha}")
 
         if step <= warmup_length:
-            alpha0 = 1e-4
+            alpha0 = 1
             num_search = self.num_search
         else:
             num_search = 1
@@ -553,10 +617,10 @@ def line_search_armijo(f, derphi0, phi0, args=(), c1=1e-4, alpha0=1, num_search=
             # alpha, phi1 = search_bisection_ddp_visual(phi, phi0, derphi0, c1=c1,
             #                                   old_alpha=alpha0, shrink=factor, grow=1/factor, amax=1, amin=1e-6, num_search=num_search, log_dir=log_dir, global_step=step)
     else:
-            # alpha, phi1 = search_bisection(phi, phi0, derphi0, c1=c1,
-            #                                 old_alpha=alpha0, grow=1/factor, shrink=factor, amax=1, amin=1e-6, num_search=num_search)
-            alpha, phi1 = search_bisection_visual(phi, phi0, derphi0, c1=c1,
-                                                          old_alpha=alpha0, shrink=factor, grow=1/factor, amax=1, amin=1e-6, num_search=num_search, log_dir=log_dir, global_step=step)
+            alpha, phi1 = search_bisection(phi, phi0, derphi0, c1=c1,
+                                            old_alpha=alpha0, grow=1/factor, shrink=factor, amax=1, amin=1e-6, num_search=num_search)
+            # alpha, phi1 = search_bisection_visual(phi, phi0, derphi0, c1=c1,
+            #                                               old_alpha=alpha0, shrink=factor, grow=1/factor, amax=1, amin=1e-6, num_search=num_search, log_dir=log_dir, global_step=step)
     
     
     # if search_mode == "backtrack":
@@ -903,7 +967,7 @@ def search_bisection_ddp_visual(phi, phi0, derphi0, c1,
 def search_bisection_visual(phi, phi0, derphi0, c1,
                      old_alpha, grow=2.0, shrink=0.5,
                      amax=1, amin=1e-6, num_search=10,
-                    t_min=0.0, t_max=1e-4, num_points=100, log_dir=None, global_step=0):
+                    t_min=0.0, t_max=3e-3, num_points=100, log_dir=None, global_step=0):
     """Non-DDP visual version of bisection/backtracking search.
 
     Mirrors `search_bisection_ddp_visual` but without torch.distributed calls.

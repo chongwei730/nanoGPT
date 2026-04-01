@@ -17,7 +17,7 @@ from torch.optim import AdamW
 
 from datasets import load_dataset
 from transformers import AutoTokenizer, AutoModelForCausalLM, get_cosine_schedule_with_warmup
-from lr_sched_smooth import LineSearchScheduler
+from lr_sched import LineSearchScheduler
 
 def parse_args():
     p = argparse.ArgumentParser()
@@ -75,19 +75,17 @@ def collate_fn(batch, pad_token_id):
     return {'input_ids': input_ids, 'attention_mask': attention_mask, 'labels': labels}
 
 
-def evaluate(model, dataloader, device, amp=False):
+def evaluate(model, dataloader, device):
     model.eval()
     total_loss = 0.0
     total_tokens = 0
-    ctx = torch.cuda.amp.autocast if amp else nullcontext
     with torch.no_grad():
         for batch in dataloader:
             input_ids = batch['input_ids'].to(device)
             attention_mask = batch['attention_mask'].to(device)
             labels = batch['labels'].to(device)
-            with ctx():
-                outputs = model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
-                loss = outputs.loss
+            outputs = model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
+            loss = outputs.loss
             bsz = input_ids.size(0)
             total_loss += loss.item() * bsz
             total_tokens += bsz
@@ -95,7 +93,7 @@ def evaluate(model, dataloader, device, amp=False):
     return total_loss / max(1, total_tokens)
 
 
-from contextlib import nullcontext
+
 
 
 
@@ -146,7 +144,8 @@ def main():
 
     num_update_steps_per_epoch = math.ceil(len(train_loader) / args.gradient_accumulation_steps)
     max_train_steps = args.max_iters
-    num_warmup_steps = int(0.03 * max_train_steps)
+    # num_warmup_steps = int(0.03 * max_train_steps)
+    num_warmup_steps = 1000
     scheduler = LineSearchScheduler(optimizer=optimizer, 
                                 model_paras=model.parameters(), 
                                 num_search=16, start_lr=0, 
@@ -154,7 +153,7 @@ def main():
                                 injection=True, 
                                 search_mode="bisection", 
                                 warmup_length=num_warmup_steps)
-    linesearch_interval = 100
+    linesearch_interval = 1000
     accum_steps = 32
     c1 = 0.03
     ls_iter = iter(ls_train_loader)
@@ -165,7 +164,8 @@ def main():
 
     # training state
     global_step = 0
-    scaler = torch.cuda.amp.GradScaler()
+    # AMP removed: use standard FP training
+    scaler = None
     model.train()
     line_search_closure = None
 
@@ -183,9 +183,9 @@ def main():
         labels = batch['labels'].to(device)
 
         # ===== 2. line search =====
-        print(global_step - 30, ((global_step - 30) % linesearch_interval))
-        if ((global_step - 30) % linesearch_interval == 0) or (
-            global_step <= num_warmup_steps and ((global_step - 30) % num_warmup_steps == 0)
+       
+        if ((global_step) % linesearch_interval == 0) or (
+            global_step <= num_warmup_steps and ((global_step) % num_warmup_steps == 0)
         ):
             print(f"[step {global_step}] LINESEARCH")
 
@@ -204,6 +204,8 @@ def main():
                 fixed_batches.append((x, m, y))
 
             def line_search_closure(require_grad=False):
+                if require_grad:
+                    optimizer.zero_grad()
                 total_loss = torch.zeros((), device=device)
 
                 for x_ls, m_ls, y_ls in fixed_batches:
@@ -216,7 +218,11 @@ def main():
                     total_loss += loss
 
                     if require_grad:
-                        scaler.scale(loss / accum_steps).backward()
+                        (loss / accum_steps).backward()
+
+                # If gradients were produced for the closure, clip them
+                if require_grad:
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
 
                 return (total_loss / accum_steps).item()
 
@@ -224,30 +230,26 @@ def main():
         scheduler.step(
             line_search_closure,
             c1=c1,
-            step=global_step - 30,
+            step=global_step,
             interval=linesearch_interval,
             condition="armijo",
             warmup_length=num_warmup_steps,
         )
 
         # ===== 4. forward + backward =====
-        with torch.cuda.amp.autocast():
-            outputs = model(
-                input_ids=input_ids,
-                attention_mask=attention_mask,
-                labels=labels,
-            )
-            loss = outputs.loss
+        outputs = model(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            labels=labels,
+        )
+        loss = outputs.loss
 
         loss_val = loss.item()
-        scaler.scale(loss).backward()
+        loss.backward()
 
         # ===== 5. optimizer step =====
-        scaler.unscale_(optimizer)
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-
-        scaler.step(optimizer)
-        scaler.update()
+        optimizer.step()
         optimizer.zero_grad()
 
         global_step += 1

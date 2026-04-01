@@ -97,7 +97,6 @@ class LineSearchScheduler():
                     return -g
                 else:
                     return torch.zeros_like(p)
-
         return rule
 
     def get_potential_adam_update_direction(self, fallback_to_neg_grad=False):
