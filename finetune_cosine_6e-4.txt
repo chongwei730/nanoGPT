@@ -1,8 +1,0 @@
-[step 200] val loss: 2.2628
-[step 400] val loss: 2.0733
-[step 600] val loss: 1.8748
-[step 800] val loss: 1.7322
-[step 1000] val loss: 1.6983
-Cosine anneal 6e-4
-
-

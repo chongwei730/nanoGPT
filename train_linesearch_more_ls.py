@@ -62,10 +62,10 @@ max_iters = 10000 # total number of training iterations
 weight_decay = 1e-1
 beta1 = 0.9
 beta2 = 0.95
-grad_clip = 1.0 # clip gradients at this value, or disable if == 0.0
+grad_clip = 0.0 # clip gradients at this value, or disable if == 0.0
 # learning rate decay settings
 decay_lr = True # whether to decay the learning rate
-warmup_iters = 100  # how many steps to warm up for
+warmup_iters = 1000  # how many steps to warm up for
 lr_decay_iters = 10000 # should be ~= max_iters per Chinchilla
 min_lr = 6e-5 # minimum learning rate, should be ~= learning_rate/10 per Chinchilla
 # DDP settings
@@ -240,9 +240,9 @@ scheduler = LineSearchScheduler(optimizer=optimizer,
                                 injection=False, 
                                 search_mode="bisection", 
                                 warmup_length=warmup_iters)
-linesearch_interval = 1000
+linesearch_interval = 1
 accum_steps = 32 ## can be adaptive
-c1 = 0.2
+c1 = 0.9
 
 
 # learning rate decay scheduler (cosine with warmup)
@@ -336,7 +336,8 @@ while True:
             return line_search_closure
         line_search_closure = make_closure()
             
-    c1_use = c1 + (1 - c1) * (iter_num / max_iters)
+    # c1_use = c1 + (1 - c1) * (iter_num / max_iters)
+    c1_use = c1
     scheduler.step(line_search_closure, c1=c1_use, step=iter_num, interval=linesearch_interval, condition="armijo", warmup_length=warmup_iters)
     lr = optimizer.param_groups[0]['lr']
 

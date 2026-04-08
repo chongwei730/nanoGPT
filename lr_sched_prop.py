@@ -12,8 +12,6 @@ import torch.distributed as dist
 # from absl import logging
 from torch.nn.functional import cosine_similarity
 import matplotlib.pyplot as plt
-import os
-import csv
 
 class LineSearchScheduler():
     def __init__(self, optimizer, start_lr, model_paras, num_search=16, optimizer_type="SGD", injection=True, search_mode="backtrack", warmup_length=100, num_perturb_samples=3, rho=0.001):
@@ -43,19 +41,6 @@ class LineSearchScheduler():
         self.paras = model_paras
         # self.injection_distribution = self._generate_long_tail_distribution()
         self.rule = self.get_potential_update_direction()
-        self.log_dir = "./observation"
-        # ensure log directory exists and prepare csv file for observations
-        os.makedirs(self.log_dir, exist_ok=True)
-        self.log_path = os.path.join(self.log_dir, "observations.csv")
-        # Only create/write header from rank 1 when using DDP, or always in single-process
-        use_ddp_init = dist.is_available() and dist.is_initialized()
-        rank_init = dist.get_rank() if use_ddp_init else 0
-        if (not use_ddp_init) or (rank_init == 1):
-            # write header if file does not exist
-            if not os.path.exists(self.log_path):
-                with open(self.log_path, "w", newline='') as f:
-                    writer = csv.writer(f)
-                    writer.writerow(["step", "loss", "lr", "gradient_norm", "dir_norm", "inner", "mag", "ls_loss_decre"])
 
     
     
@@ -341,6 +326,21 @@ class LineSearchScheduler():
                 state = self.optimizer.state.get(p, {})
                 if 'exp_avg' in state:
                     state['exp_avg'].zero_()
+
+
+
+    def _sample_lr_from_exponential(self, mean_lr):
+        """Sample a learning rate from an exponential distribution with mean `mean_lr`.
+
+        Falls back to returning `mean_lr` if it's non-finite or non-positive.
+        """
+        try:
+            if mean_lr is None or not np.isfinite(mean_lr) or float(mean_lr) <= 0.0:
+                return float(mean_lr)
+            # numpy's exponential(scale) uses `scale=mean`
+            return float(np.random.exponential(scale=float(mean_lr)))
+        except Exception:
+            return float(mean_lr)
                     
 
         
@@ -369,13 +369,17 @@ class LineSearchScheduler():
                 lr = self.prev_alpha + cosine_frac * (
                     self.line_search_alpha - self.prev_alpha
                 )
-                for param_group in self.optimizer.param_groups: 
-                    param_group['lr'] = lr
+                real_lr = self._sample_lr_from_exponential(lr)
+                for param_group in self.optimizer.param_groups:
+                    param_group['lr'] = real_lr
                 return
             warmup_frac = (k + 1) / interval
             lr = self.prev_alpha + warmup_frac * (self.line_search_alpha - self.prev_alpha)
-            for param_group in self.optimizer.param_groups: 
-                param_group['lr'] = lr 
+             # sample real lr from exponential distribution with mean `lr`
+            real_lr = self._sample_lr_from_exponential(lr)
+            print(real_lr)
+            for param_group in self.optimizer.param_groups:
+                param_group['lr'] = real_lr
             return
 
         self.optimizer.zero_grad(set_to_none=True)
@@ -384,41 +388,68 @@ class LineSearchScheduler():
 
         self.rule = self.get_potential_update_direction()
 
+        # inner = 0.0
+
+     
+        # grad_sq = 0.0
+        # dir_sq = 0.0
+        # param_sq = 0.0
+        # dot_gd = 0.0
+        # dot_gp = 0.0
+
+        # max_grad = 0.0
+        # max_dir = 0.0
+
+        # with torch.no_grad():
+        #     for group in self.optimizer.param_groups:
+        #         wd = group.get("weight_decay", 0.0)
+
+        #         for p in group["params"]:
+        #             if p.grad is None:
+        #                 continue
+
+        #             g = p.grad
+        #             d = self.rule(p)
+
+        #             # ===== norm 统计 =====
+        #             grad_sq += torch.sum(g * g).item()
+        #             dir_sq += torch.sum(d * d).item()
+        #             param_sq += torch.sum(p * p).item()
+
+        #             # ===== dot product =====
+        #             gd = torch.sum(g * d).item()
+        #             gp = torch.sum(g * p).item()
+
+        #             dot_gd += gd
+        #             dot_gp += gp
+
+        #             # ===== max element =====
+        #             max_grad = max(max_grad, g.abs().max().item())
+        #             max_dir = max(max_dir, d.abs().max().item())
+
+
+        # grad_norm = grad_sq ** 0.5
+        # dir_norm = dir_sq ** 0.5
+        # param_norm = param_sq ** 0.5
+
+
+        # cos_gd = dot_gd / (grad_norm * dir_norm + 1e-12)
+
+
+        # inner = dot_gd - wd * dot_gp
         inner = 0.0
-
-
-        dot_gd = 0.0
-        dot_gp = 0.0
-
-
-
         with torch.no_grad():
             for group in self.optimizer.param_groups:
-                wd = group.get("weight_decay", 0.0)
-
-                for p in group["params"]:
-                    if p.grad is None:
-                        continue
-
-                    g = p.grad
-                    d = self.rule(p)
-
-
-                    # ===== dot product =====
-                    gd = torch.sum(g * d).item()
-                    gp = torch.sum(g * p).item()
-
-                    dot_gd += gd
-                    dot_gp += gp
-
-
-
-
-        inner = dot_gd - wd * dot_gp
+                    wd = group.get("weight_decay", 0.0)
+                    for p in group["params"]:
+                        if p.grad is None:
+                            continue     
+                        inner += torch.sum(p.grad * self.rule(p))
+                        inner -= wd * torch.sum(p.grad * p)
 
         phi0, derphi0 = loss, inner
 
-
+ 
         # print("\n========== Line Search Debug ==========")
         # print(f"loss (phi0): {phi0}")
         # print(f"derphi0: {derphi0}")
@@ -485,6 +516,7 @@ class LineSearchScheduler():
             inner = 0.0
             with torch.no_grad():
                 for group in self.optimizer.param_groups:
+                        wd = group.get("weight_decay", 0.0)
                         for p in group["params"]:
                             if p.grad is None:
                                 continue
@@ -518,7 +550,7 @@ class LineSearchScheduler():
         # print(f"start searching with alpha = {alpha0}, the prev_alpha is {self.prev_alpha}")
 
         if step <= warmup_length:
-            alpha0 = 0.5
+            alpha0 = 1
             num_search = self.num_search
         else:
             num_search = 1
@@ -550,46 +582,11 @@ class LineSearchScheduler():
         #         param_group['lr'] = alpha
 
         self.line_search_alpha = alpha
-        print(alpha)
-        # for param_group in self.optimizer.param_groups: 
-        #         param_group['lr'] = alpha
-
-        # print("LINESEARCH LR:", alpha)
-        # # Record observation to CSV (only rank 1 when using DDP; single-process writes too)
-        # try:
-        #     def _to_float(x):
-        #         if torch.is_tensor(x):
-        #             return float(x.detach().cpu().item())
-        #         return float(x)
-
-        #     loss_val = _to_float(phi0)
-        #     lr_val = _to_float(alpha) if alpha is not None else float(self.optimizer.param_groups[0]["lr"])
-        #     grad_norm_val = float(grad_norm)
-        #     dir_norm_val = float(dir_norm)
-        #     inner_val = _to_float(derphi0 if 'derphi0' in locals() else inner)
-        #     mag_val = lr_val * dir_norm_val
-        #     ls_loss_decre_val = inner_val * lr_val
-
-        #     use_ddp = dist.is_available() and dist.is_initialized()
-        #     rank = dist.get_rank() if use_ddp else 0
-        #     # only allow writes from rank 1 in DDP, or from single-process (rank 0)
-        #     if (not use_ddp) or (rank == 1):
-        #         os.makedirs(self.log_dir, exist_ok=True)
-        #         with open(self.log_path, 'a', newline='') as f:
-        #             writer = csv.writer(f)
-        #             writer.writerow([int(step), loss_val, lr_val, grad_norm_val, dir_norm_val, inner_val, mag_val, ls_loss_decre_val])
-        # except Exception:
-        #     # best-effort logging; don't interrupt training on logging failure
-        #     pass
+        print("LINESEARCH LR:", alpha)
         # if is_plateau:
         #    for param_group in self.optimizer.param_groups: 
         #             param_group['lr'] = alpha
-        # if step <= warmup_length:
-        #     for param_group in self.optimizer.param_groups: 
-        #         param_group['lr'] = alpha
-            
         self.prev_alpha = self.optimizer.param_groups[0]["lr"]
-
 
 
 

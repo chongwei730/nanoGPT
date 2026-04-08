@@ -3,16 +3,16 @@ This training script can be run both on a single gpu in debug mode,
 and also in a larger training run with distributed data parallel (ddp).
 
 To run on a single GPU, example:
-$ python train.py --batch_size=32 --compile=False
+$ python train_muon.py --batch_size=32 --compile=False
 
 To run with DDP on 4 gpus on 1 node, example:
-$ torchrun --standalone --nproc_per_node=4 train.py
+$ torchrun --standalone --nproc_per_node=4 train_muon.py
 
 To run with DDP on 4 gpus across 2 nodes, example:
 - Run on the first (master) node with example IP 123.456.123.456:
-$ torchrun --nproc_per_node=8 --nnodes=2 --node_rank=0 --master_addr=123.456.123.456 --master_port=1234 train.py
+$ torchrun --nproc_per_node=8 --nnodes=2 --node_rank=0 --master_addr=123.456.123.456 --master_port=1234 train_muon.py
 - Run on the worker node:
-$ torchrun --nproc_per_node=8 --nnodes=2 --node_rank=1 --master_addr=123.456.123.456 --master_port=1234 train.py
+$ torchrun --nproc_per_node=8 --nnodes=2 --node_rank=1 --master_addr=123.456.123.456 --master_port=1234 train_muon.py
 (If your cluster does not have Infiniband interconnect prepend NCCL_IB_DISABLE=1)
 """
 
@@ -21,8 +21,6 @@ import time
 import math
 import pickle
 from contextlib import nullcontext
-from lr_sched import LineSearchScheduler
-import logging
 
 import numpy as np
 import torch
@@ -30,6 +28,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.distributed import init_process_group, destroy_process_group
 
 from model import GPTConfig, GPT
+from muon import MuonWithAuxAdam, SingleDeviceMuonWithAuxAdam
 
 # -----------------------------------------------------------------------------
 # default config values designed to train a gpt2 (124M) on OpenWebText
@@ -44,7 +43,7 @@ init_from = 'scratch' # 'scratch' or 'resume' or 'gpt2*'
 # wandb logging
 wandb_log = False # disabled by default
 wandb_project = 'owt'
-wandb_run_name = 'gpt2' # 'run' + str(time.time())
+wandb_run_name = 'gpt2-muon' # 'run' + str(time.time())
 # data
 dataset = 'openwebtext'
 gradient_accumulation_steps = 5 * 8 # used to simulate larger batch sizes
@@ -56,18 +55,24 @@ n_head = 12
 n_embd = 768
 dropout = 0.0 # for pretraining 0 is good, for finetuning try 0.1+
 bias = False # do we use bias inside LayerNorm and Linear layers?
-# adamw optimizer
-learning_rate = 1e-6 # max learning rate
+# optimizer
+learning_rate = 1.0 # global multiplier for the per-group Muon/Adam learning rates
 max_iters = 10000 # total number of training iterations
 weight_decay = 1e-1
-beta1 = 0.9
+beta1 = 0.8
 beta2 = 0.95
-grad_clip = 1.0 # clip gradients at this value, or disable if == 0.0
+grad_clip = 0.0 # clip gradients at this value, or disable if == 0.0
+muon_lr = 0.05
+muon_momentum = 0.95
+adam_head_lr = 6e-4
+adam_embed_lr = 6e-4
+adam_scalar_lr = 6e-4
+adam_eps = 1e-10
 # learning rate decay settings
-decay_lr = True # whether to decay the learning rate
-warmup_iters = 100  # how many steps to warm up for
+decay_lr = True # whether to decay the global lr multiplier
+warmup_iters = 100 # how many steps to warm up for
 lr_decay_iters = 10000 # should be ~= max_iters per Chinchilla
-min_lr = 6e-5 # minimum learning rate, should be ~= learning_rate/10 per Chinchilla
+min_lr = 0.1 # minimum lr multiplier
 # DDP settings
 backend = 'nccl' # 'nccl', 'gloo', etc.
 # system
@@ -115,16 +120,13 @@ ctx = nullcontext() if device_type == 'cpu' else torch.amp.autocast(device_type=
 
 # poor man's data loader
 data_dir = os.path.join('/scratch.global/chen8596/nanogpt_data', dataset)
-train_data = np.memmap(os.path.join(data_dir, 'train.bin'), dtype=np.uint16, mode='r')
-val_data = np.memmap(os.path.join(data_dir, 'val.bin'), dtype=np.uint16, mode='r')
-def get_batch_linesearch(split, mode=False):
-        
+def get_batch(split):
     # We recreate np.memmap every batch to avoid a memory leak, as per
     # https://stackoverflow.com/questions/45132940/numpy-memmap-memory-usage-want-to-iterate-once/61472122#61472122
     if split == 'train':
-        data = train_data
+        data = np.memmap(os.path.join(data_dir, 'train.bin'), dtype=np.uint16, mode='r')
     else:
-        data = val_data
+        data = np.memmap(os.path.join(data_dir, 'val.bin'), dtype=np.uint16, mode='r')
     ix = torch.randint(len(data) - block_size, (batch_size,))
     x = torch.stack([torch.from_numpy((data[i:i+block_size]).astype(np.int64)) for i in ix])
     y = torch.stack([torch.from_numpy((data[i+1:i+1+block_size]).astype(np.int64)) for i in ix])
@@ -175,9 +177,8 @@ elif init_from == 'resume':
     model = GPT(gptconf)
     state_dict = checkpoint['model']
     # fix the keys of the state dictionary :(
-    # honestly no idea how checkpoints sometimes get this prefix, have to debug more
     unwanted_prefix = '_orig_mod.'
-    for k,v in list(state_dict.items()):
+    for k, v in list(state_dict.items()):
         if k.startswith(unwanted_prefix):
             state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
     model.load_state_dict(state_dict)
@@ -191,6 +192,7 @@ elif init_from.startswith('gpt2'):
     # read off the created config params, so we can store them into checkpoint correctly
     for k in ['n_layer', 'n_head', 'n_embd', 'block_size', 'bias', 'vocab_size']:
         model_args[k] = getattr(model.config, k)
+
 # crop down the model block size if desired, using model surgery
 if block_size < model.config.block_size:
     model.crop_block_size(block_size)
@@ -198,10 +200,44 @@ if block_size < model.config.block_size:
 model.to(device)
 
 # initialize a GradScaler. If enabled=False scaler is a no-op
-scaler = torch.cuda.amp.GradScaler(enabled=(dtype == 'float16'))
+scaler = torch.amp.GradScaler('cuda', enabled=(dtype == 'float16'))
+
+def build_optimizer(model):
+    named_params = list(model.named_parameters())
+    head_params = [model.lm_head.weight]
+    embed_params = [
+        p for n, p in named_params
+        if (n.startswith('transformer.wte.') or n.startswith('transformer.wpe.')) and id(p) != id(model.lm_head.weight)
+    ]
+    scalar_params = [p for n, p in named_params if p.ndim < 2]
+
+    excluded = {id(p) for p in head_params + embed_params + scalar_params}
+    hidden_matrix_params = [p for _, p in named_params if p.ndim >= 2 and id(p) not in excluded]
+
+    adam_groups = [
+        dict(params=head_params, lr=adam_head_lr, weight_decay=weight_decay),
+        dict(params=embed_params, lr=adam_embed_lr, weight_decay=weight_decay),
+        dict(params=scalar_params, lr=adam_scalar_lr, weight_decay=weight_decay),
+    ]
+    adam_groups = [
+        dict(**group, betas=(beta1, beta2), eps=adam_eps, use_muon=False)
+        for group in adam_groups
+    ]
+    muon_group = dict(
+        params=hidden_matrix_params,
+        lr=muon_lr,
+        momentum=muon_momentum,
+        weight_decay=weight_decay,
+        use_muon=True,
+    )
+
+    optimizer_cls = MuonWithAuxAdam if ddp else SingleDeviceMuonWithAuxAdam
+    optimizer = optimizer_cls([*adam_groups, muon_group])
+    base_group_lrs = [group['lr'] for group in optimizer.param_groups]
+    return optimizer, base_group_lrs
 
 # optimizer
-optimizer = model.configure_optimizers(weight_decay, 1e-6, (beta1, beta2), device_type)
+optimizer, base_group_lrs = build_optimizer(model)
 if init_from == 'resume':
     optimizer.load_state_dict(checkpoint['optimizer'])
 checkpoint = None # free up memory
@@ -224,7 +260,7 @@ def estimate_loss():
     for split in ['train', 'val']:
         losses = torch.zeros(eval_iters)
         for k in range(eval_iters):
-            X, Y = get_batch_linesearch(split)
+            X, Y = get_batch(split)
             with ctx:
                 logits, loss = model(X, Y)
             losses[k] = loss.item()
@@ -232,21 +268,19 @@ def estimate_loss():
     model.train()
     return out
 
-# define the linesearch lr_sched
-scheduler = LineSearchScheduler(optimizer=optimizer, 
-                                model_paras=model.parameters(), 
-                                num_search=30, start_lr=0, 
-                                optimizer_type="AdamW", 
-                                injection=False, 
-                                search_mode="bisection", 
-                                warmup_length=warmup_iters)
-linesearch_interval = 1000
-accum_steps = 32 ## can be adaptive
-c1 = 0.2
-
-
-# learning rate decay scheduler (cosine with warmup)
-
+# learning rate decay scheduler (cosine with warmup) for the global lr multiplier
+def get_lr(it):
+    # 1) linear warmup for warmup_iters steps
+    if it < warmup_iters:
+        return learning_rate * (it + 1) / (warmup_iters + 1)
+    # 2) if it > lr_decay_iters, return min learning rate
+    if it > lr_decay_iters:
+        return min_lr
+    # 3) in between, use cosine decay down to min learning rate
+    decay_ratio = (it - warmup_iters) / (lr_decay_iters - warmup_iters)
+    assert 0 <= decay_ratio <= 1
+    coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio)) # coeff ranges 0..1
+    return min_lr + coeff * (learning_rate - min_lr)
 
 # logging
 if wandb_log and master_process:
@@ -254,92 +288,17 @@ if wandb_log and master_process:
     wandb.init(project=wandb_project, name=wandb_run_name, config=config)
 
 # training loop
-X, Y = get_batch_linesearch('train') # fetch the very first batch
-
+X, Y = get_batch('train') # fetch the very first batch
 t0 = time.time()
 local_iter_num = 0 # number of iterations in the lifetime of this process
 raw_model = model.module if ddp else model # unwrap DDP container if needed
 running_mfu = -1.0
 while True:
-    # print(iter_num, linesearch_interval, warmup_iters)
-    if iter_num % linesearch_interval == 0 or (iter_num <= warmup_iters and iter_num % warmup_iters == 0):
-        print("LINESEARCH!!!")
-        fixed_batches = []
-        for i in range(accum_steps):
-            X_ls, Y_ls = get_batch_linesearch("train")
-            fixed_batches.append((X_ls, Y_ls))
 
-        def make_closure():
-            def line_search_closure(require_grad=False):
-                # optimizer.zero_grad()
-                device = next(model.parameters()).device
-                total_loss = torch.zeros((), device=device)
-                for x_ls, y_ls in fixed_batches:
-                    # x_ls = x_ls.to(device)
-                    # y_ls = y_ls.to(device)
-                    outputs_ls, loss_ls = model(x_ls, y_ls)
-
-                    total_loss += loss_ls
-
-                    if require_grad:
-                    #     # capture gradient vector before this micro-batch
-                    #     vecs_before = []
-                    #     for p in model.parameters():
-                    #         if p.requires_grad:
-                    #             if p.grad is None:
-                    #                 vecs_before.append(p.new_zeros(p.numel()))
-                    #             else:
-                    #                 vecs_before.append(p.grad.detach().view(-1).clone())
-                    #     g_before = torch.cat(vecs_before) if len(vecs_before) > 0 else torch.tensor([], device=device)
-
-                    #     # backward for this micro-batch (with accumulation scaling)
-                        (loss_ls / (accum_steps+1)).backward()
-
-                        # Clip gradients produced by the closure to keep them consistent
-                        # with the main training loop. This prevents excessively large
-                        # gradient norms from affecting line-search behavior.
-                        if grad_clip != 0:
-                            torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
-
-                    #     # capture gradient vector after this micro-batch
-                    #     vecs_after = []
-                    #     for p in model.parameters():
-                    #         if p.requires_grad:
-                    #             if p.grad is None:
-                    #                 vecs_after.append(p.new_zeros(p.numel()))
-                    #             else:
-                    #                 vecs_after.append(p.grad.detach().view(-1).clone())
-                    #     g_after = torch.cat(vecs_after) if len(vecs_after) > 0 else torch.tensor([], device=device)
-
-                    #     # compute increment and angle
-                    #     g_increment = g_after - g_before
-                    #     norm_b = torch.norm(g_before) if g_before.numel() > 0 else torch.tensor(0.0, device=device)
-                    #     norm_i = torch.norm(g_increment) if g_increment.numel() > 0 else torch.tensor(0.0, device=device)
-                    #     if norm_b.item() > 1e-12 and norm_i.item() > 1e-12:
-                    #         cos = (g_before @ g_increment) / (norm_b * norm_i + 1e-12)
-                    #         cos = cos.clamp(-1.0, 1.0)
-                    #         angle_deg = (torch.acos(cos) * 180.0 / torch.pi).item()
-                    #         cos_val = float(cos.item())
-                    #     else:
-                    #         angle_deg = 0.0
-                    #         cos_val = 0.0
-
-                    #     if master_process:
-                    #         logging.warning(
-                    #             f"[iter {iter_num}] gradient angle (deg) = {angle_deg:.2f}, "
-                    #             f"cos={cos_val:.4f}, ||before||={norm_b.item():.3e}, "
-                    #             f"||increm||={norm_i.item():.3e}"
-                    #         )
-
-                avg_loss = total_loss / (accum_steps + 1)
-                return avg_loss.item()
-            return line_search_closure
-        line_search_closure = make_closure()
-            
-    c1_use = c1 + (1 - c1) * (iter_num / max_iters)
-    scheduler.step(line_search_closure, c1=c1_use, step=iter_num, interval=linesearch_interval, condition="armijo", warmup_length=warmup_iters)
-    lr = optimizer.param_groups[0]['lr']
-
+    # determine and set the learning rate multiplier for this iteration
+    lr_mult = get_lr(iter_num) if decay_lr else learning_rate
+    for param_group, base_lr in zip(optimizer.param_groups, base_group_lrs):
+        param_group['lr'] = base_lr * lr_mult
 
     # evaluate the loss on train/val sets and write checkpoints
     if iter_num % eval_interval == 0 and master_process:
@@ -350,7 +309,11 @@ while True:
                 "iter": iter_num,
                 "train/loss": losses['train'],
                 "val/loss": losses['val'],
-                "lr": lr,
+                "lr_mult": lr_mult,
+                "head_lr": optimizer.param_groups[0]['lr'],
+                "embed_lr": optimizer.param_groups[1]['lr'],
+                "scalar_lr": optimizer.param_groups[2]['lr'],
+                "muon_lr": optimizer.param_groups[3]['lr'],
                 "mfu": running_mfu*100, # convert to percentage
             })
         if losses['val'] < best_val_loss or always_save_checkpoint:
@@ -374,21 +337,20 @@ while True:
     for micro_step in range(gradient_accumulation_steps):
         if ddp:
             # in DDP training we only need to sync gradients at the last micro step.
-            # the official way to do this is with model.no_sync() context manager, but
-            # I really dislike that this bloats the code and forces us to repeat code
-            # looking at the source of that context manager, it just toggles this variable
             model.require_backward_grad_sync = (micro_step == gradient_accumulation_steps - 1)
         with ctx:
             logits, loss = model(X, Y)
             loss = loss / gradient_accumulation_steps # scale the loss to account for gradient accumulation
         # immediately async prefetch next batch while model is doing the forward pass on the GPU
-        X, Y = get_batch_linesearch('train')
+        X, Y = get_batch('train')
         # backward pass, with gradient scaling if training in fp16
         scaler.scale(loss).backward()
+
     # clip the gradient
     if grad_clip != 0.0:
         scaler.unscale_(optimizer)
         torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
+
     # step the optimizer and scaler if training in fp16
     scaler.step(optimizer)
     scaler.update()
@@ -405,8 +367,11 @@ while True:
         lossf = loss.item() * gradient_accumulation_steps
         if local_iter_num >= 5: # let the training loop settle a bit
             mfu = raw_model.estimate_mfu(batch_size * gradient_accumulation_steps, dt)
-            running_mfu = mfu if running_mfu == -1.0 else 0.9*running_mfu + 0.1*mfu
-        print(f"iter {iter_num}: loss {lossf:.4f}, time {dt*1000:.2f}ms, mfu {running_mfu*100:.2f}%")
+            running_mfu = mfu if running_mfu == -1.0 else 0.9 * running_mfu + 0.1 * mfu
+        print(
+            f"iter {iter_num}: loss {lossf:.4f}, time {dt*1000:.2f}ms, "
+            f"mfu {running_mfu*100:.2f}%, lr_mult {lr_mult:.4f}, muon_lr {optimizer.param_groups[3]['lr']:.4f}"
+        )
     iter_num += 1
     local_iter_num += 1
 

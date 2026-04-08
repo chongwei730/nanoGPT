@@ -7,6 +7,14 @@ __pycache__/
 *.pkl
 *.pt
 *.pyc
+*.log
+*.log.*
+*.out
+*.err
+log*.txt
+wandb/
 input.txt
 env/
 venv/
+.codex
+*.yml

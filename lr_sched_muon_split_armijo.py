@@ -12,9 +12,20 @@ import torch.distributed as dist
 # from absl import logging
 from torch.nn.functional import cosine_similarity
 import matplotlib.pyplot as plt
+from muon import zeropower_via_newtonschulz5
+
+# Fix random seeds for reproducibility
+_SEED = 42
+random.seed(_SEED)
+np.random.seed(_SEED)
+torch.manual_seed(_SEED)
+if torch.cuda.is_available():
+    torch.cuda.manual_seed_all(_SEED)
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
 
 class LineSearchScheduler():
-    def __init__(self, optimizer, start_lr, model_paras, num_search=16, optimizer_type="SGD", injection=True, search_mode="backtrack", warmup_length=100, num_perturb_samples=5, rho=0.001):
+    def __init__(self, optimizer, start_lr, model_paras, num_search=16, optimizer_type="SGD", injection=True, search_mode="backtrack", warmup_length=100, num_perturb_samples=3, rho=0.001, controlled_group_indices=None):
         """
         num_search: maximum number of searches
         start_lr: maximum LR to start if backtrack/ minimum LR to start if forward
@@ -31,13 +42,22 @@ class LineSearchScheduler():
         self.injection=injection
         self.prev_fvals = deque(maxlen=2)
         self.line_search_alpha = start_lr
+        self.line_search_magnitude = start_lr
+        self.prev_magnitude = start_lr
+        self.magnitude = start_lr
         self.warmup_length = warmup_length
         self.prev_alpha = start_lr
         self.search_mode = search_mode
         self.K = num_perturb_samples
         self.rho = rho
-        for pg in self.optimizer.param_groups:
-            pg["lr"] = self.start_lr
+        self.controlled_group_indices = list(range(len(self.optimizer.param_groups))) if controlled_group_indices is None else list(controlled_group_indices)
+        self.controlled_group_index_set = set(self.controlled_group_indices)
+        self.param_to_group = {}
+        for group in self.optimizer.param_groups:
+            for p in group["params"]:
+                self.param_to_group[id(p)] = group
+        for group_idx in self.controlled_group_indices:
+            self.optimizer.param_groups[group_idx]["lr"] = self.start_lr
         self.paras = model_paras
         # self.injection_distribution = self._generate_long_tail_distribution()
         self.rule = self.get_potential_update_direction()
@@ -52,6 +72,10 @@ class LineSearchScheduler():
     def state_dict(self):
         return {
             'last_lr': self.prev_alpha,
+            'line_search_alpha': self.line_search_alpha,
+            'line_search_magnitude': self.line_search_magnitude,
+            'prev_magnitude': self.prev_magnitude,
+            'magnitude': self.magnitude,
         }
     
     def load_state_dict(self, state_dict):
@@ -59,10 +83,16 @@ class LineSearchScheduler():
             raise TypeError(f"Expected dict, got {type(state_dict)}")
 
         self.prev_alpha = state_dict.get('last_lr', self.start_lr)
+        self.line_search_alpha = state_dict.get('line_search_alpha', self.start_lr)
+        self.line_search_magnitude = state_dict.get('line_search_magnitude', self.start_lr)
+        self.prev_magnitude = state_dict.get('prev_magnitude', self.start_lr)
+        self.magnitude = state_dict.get('magnitude', self.start_lr)
 
     def get_potential_update_direction(self, fallback_to_neg_grad=False):
         if self.optimizer_type == "AdamW":
             return self.get_potential_adam_update_direction(fallback_to_neg_grad)
+        elif self.optimizer_type == "Muon":
+            return self.get_potential_muon_update_direction(fallback_to_neg_grad)
         elif self.optimizer_type == "SGD_momentum":
             return self.get_potential_sgd_momentum_update_direction(fallback_to_neg_grad)
         elif self.optimizer_type == "SGD":
@@ -97,10 +127,87 @@ class LineSearchScheduler():
                     return -g
                 else:
                     return torch.zeros_like(p)
+
+        return rule
+
+    def _is_muon_group(self, group):
+        if "use_muon" in group:
+            return bool(group["use_muon"])
+        return False
+
+    def _muon_group_indices(self):
+        return self.controlled_group_indices
+
+    def _adam_group_indices(self):
+        return [
+            idx for idx, group in enumerate(self.optimizer.param_groups)
+            if idx not in self.controlled_group_index_set and not self._is_muon_group(group)
+        ]
+
+    def _optimizer_params(self):
+        params = []
+        for group in self.optimizer.param_groups:
+            for p in group["params"]:
+                if p.requires_grad:
+                    params.append(p)
+        return params
+
+    def _adam_direction_for_param(self, p, group, fallback_to_neg_grad=False):
+        g = p.grad
+        if g is None:
+            return torch.zeros_like(p)
+
+        if fallback_to_neg_grad:
+            return -g
+
+        eps = group.get("eps", 1e-8)
+        beta1, beta2 = group.get("betas", (0.9, 0.999))
+        st = self.optimizer.state.get(p, {})
+        if (
+            "exp_avg" in st
+            and "exp_avg_sq" in st
+            and st.get("step", 0) > 0
+        ):
+            m = st["exp_avg"]
+            v = st["exp_avg_sq"]
+            t = st["step"] + 1
+            m_new = beta1 * m + (1 - beta1) * g
+            v_new = beta2 * v + (1 - beta2) * (g * g)
+            m_hat = m_new / (1 - beta1 ** t)
+            v_hat = v_new / (1 - beta2 ** t)
+            return -m_hat / (v_hat.sqrt() + eps)
+
+        return -g / (g.abs() + eps)
+    
+
+    def get_potential_muon_update_direction(self, fallback_to_neg_grad=True):
+        def rule(p):
+            g = p.grad
+            if g is None:
+                return torch.zeros_like(p)
+
+            group = self.param_to_group.get(id(p), {})
+            if not self._is_muon_group(group):
+                return self._adam_direction_for_param(p, group, fallback_to_neg_grad)
+
+            if p.ndim < 2:
+                return -g if fallback_to_neg_grad else torch.zeros_like(p)
+
+            momentum = group.get("momentum", 0.95)
+            st = self.optimizer.state.get(p, {})
+            buf = st["momentum_buffer"] if "momentum_buffer" in st else torch.zeros_like(p)
+            next_buf = torch.lerp(buf, g, 1 - momentum)
+            update = torch.lerp(g, next_buf, momentum)
+            if update.ndim == 4:
+                update = update.view(len(update), -1)
+            update = zeropower_via_newtonschulz5(update, steps=5)
+            update *= max(1, update.size(-2) / update.size(-1)) ** 0.5
+            return -update.reshape(p.shape)
+
         return rule
 
     def get_potential_adam_update_direction(self, fallback_to_neg_grad=False):
-        pg0 = self.optimizer.param_groups[0]
+        pg0 = self.optimizer.param_groups[self.controlled_group_indices[0]]
         eps = pg0.get("eps", 1e-8)
         beta1, beta2 = pg0.get("betas", (0.9, 0.999))
         wd = pg0.get("weight_decay", 0)
@@ -145,22 +252,23 @@ class LineSearchScheduler():
                 m_hat = m_new / (1 - beta1 ** t)
                 v_hat = v_new / (1 - beta2 ** t)
 
+
                 return -m_hat / (v_hat.sqrt() + eps) 
             else:
-                    # gf = g.flatten()
-                    # pf = p.flatten()
+                gf = g.flatten()
+                pf = p.flatten()
 
-                    # term1 = g / (g.abs() + eps)      # g-normalized
-                    # term2 = wd * p                  # weight decay term
-                    # df = (term1 - term2).flatten()
+                term1 = g / (g.abs() + eps)      # g-normalized
+                term2 = wd * p                  # weight decay term
+                df = (term1 - term2).flatten()
 
-                    # print(
-                    #     f"(g/(|g|+eps) - wd*p)[:10]={df[:10].tolist()} | "
-                    #     f"g_norm[:10]={gf[:10].tolist()} | "
-                    #     f"wd*p[:10]={(wd*pf)[:10].tolist()} | "
-                    #     f"||g_norm||={term1.flatten().norm().item():.3e} | "
-                    #     f"||wd*p||={(wd*pf).norm().item():.3e}"
-                    # )
+                # print(
+                #         f"(g/(|g|+eps) - wd*p)[:10]={df[:10].tolist()} | "
+                #         f"g_norm[:10]={gf[:10].tolist()} | "
+                #         f"wd*p[:10]={(wd*pf)[:10].tolist()} | "
+                #         f"||g_norm||={term1.flatten().norm().item():.3e} | "
+                #         f"||wd*p||={(wd*pf).norm().item():.3e}"
+                #     )
                 return - p.grad / (p.grad.abs() + eps) 
         return rule
     
@@ -169,70 +277,89 @@ class LineSearchScheduler():
     @torch.no_grad()
     def update_model(self, alpha):
         """
-        Trial update: p <- p + alpha * rule(p)
+        Trial update for Muon-controlled params only.
         """
-        # max_d = 0.0
-        wd = self.optimizer.param_groups[0].get("weight_decay", 0.0)
-        # print(f"weight_decay {wd}")
-        for group in self.optimizer.param_groups:
+        for group_idx in self._muon_group_indices():
+            group = self.optimizer.param_groups[group_idx]
+            wd = group.get("weight_decay", 0.0)
             for p in group["params"]:
                 if p.grad is None:
-                    # print("GRADIENT IS NONE!!! at 0")
                     continue
                 p.mul_(1 - alpha * wd)
-                p.add_(self.rule(p), alpha=alpha)  
-                
-
-    
-        # print(f"[debug] alpha={alpha}, max|d|={max_d}")
+                p.add_(self.rule(p), alpha=alpha)
 
     @torch.no_grad()
     def restore_model(self, alpha):
-        wd = self.optimizer.param_groups[0].get("weight_decay", 0)
-        for group in self.optimizer.param_groups:
-                for p in group["params"]:
-                    if p.grad is None:
-                        print("GRADIENT IS NONE!!! at 0")
-                        continue
-                    p.add_(self.rule(p), alpha=-alpha)
-                    p.div_(1 - alpha * wd)
+        for group_idx in self._muon_group_indices():
+            group = self.optimizer.param_groups[group_idx]
+            wd = group.get("weight_decay", 0.0)
+            for p in group["params"]:
+                if p.grad is None:
+                    print("GRADIENT IS NONE!!! at 0")
+                    continue
+                p.add_(self.rule(p), alpha=-alpha)
+                p.div_(1 - alpha * wd)
+
+    @torch.no_grad()
+    def update_adam_model(self):
+        for group_idx in self._adam_group_indices():
+            group = self.optimizer.param_groups[group_idx]
+            lr = group.get("lr", self.start_lr)
+            wd = group.get("weight_decay", 0.0)
+            for p in group["params"]:
+                if p.grad is None:
+                    continue
+                p.mul_(1 - lr * wd)
+                p.add_(self.rule(p), alpha=lr)
+
+    @torch.no_grad()
+    def restore_adam_model(self):
+        for group_idx in self._adam_group_indices():
+            group = self.optimizer.param_groups[group_idx]
+            lr = group.get("lr", self.start_lr)
+            wd = group.get("weight_decay", 0.0)
+            for p in group["params"]:
+                if p.grad is None:
+                    continue
+                p.add_(self.rule(p), alpha=-lr)
+                p.div_(1 - lr * wd)
   
 
 
-    def perturb_parameters_global_(self, rho):
+    # def perturb_parameters_global_(self, rho):
  
-        paras = list(self.paras)
+    #     paras = list(self.paras)
 
-        noises = {}
-        with torch.no_grad():
-            device = "cuda"
+    #     noises = {}
+    #     with torch.no_grad():
+    #         device = "cuda"
 
-            # 1) sample noise and compute its norm
-            noise_norm_sq = torch.zeros((), device=device)
-            for p in paras:
-                if p.requires_grad:
-                    z = torch.randn_like(p)
-                    noises[p] = z
-                    noise_norm_sq += z.pow(2).sum()
+    #         # 1) sample noise and compute its norm
+    #         noise_norm_sq = torch.zeros((), device=device)
+    #         for p in paras:
+    #             if p.requires_grad:
+    #                 z = torch.randn_like(p)
+    #                 noises[p] = z
+    #                 noise_norm_sq += z.pow(2).sum()
 
-            noise_norm = noise_norm_sq.sqrt().add_(1e-12)
-            scale = rho / noise_norm
+    #         noise_norm = noise_norm_sq.sqrt().add_(1e-12)
+    #         scale = rho / noise_norm
 
-            # 2) apply scaled noise
-            for p in paras:
-                if p.requires_grad:
-                    z = noises[p]
-                    z.mul_(scale)
-                    p.add_(z)
-
-
-        return noises
+    #         # 2) apply scaled noise
+    #         for p in paras:
+    #             if p.requires_grad:
+    #                 z = noises[p]
+    #                 z.mul_(scale)
+    #                 p.add_(z)
 
 
-    def restore_parameters_(self, noises):
-        with torch.no_grad():
-            for p, z in noises.items():
-                p.sub_(z)
+    #     return noises
+
+
+    # def restore_parameters_(self, noises):
+    #     with torch.no_grad():
+    #         for p, z in noises.items():
+    #             p.sub_(z)
 
 
     def check_optimizer_step_vs_rule(
@@ -242,36 +369,64 @@ class LineSearchScheduler():
         prefix="[LineSearchScheduler]"
     ):
         params = []
+        param_groups = []
         for group in optimizer.param_groups:
             for p in group["params"]:
                 if p.requires_grad:
                     params.append(p)
+                    param_groups.append(group)
 
         if len(params) == 0:
             print(f"{prefix} no parameters found")
             return
 
-        lr = optimizer.param_groups[0]["lr"]
-        wd = optimizer.param_groups[0].get("weight_decay", 0)
-
         # save params
         old_params = [p.detach().clone() for p in params]
+        old_grads = [
+            None if p.grad is None else p.grad.detach().clone()
+            for p in params
+        ]
+        old_states = []
+        for p in params:
+            state = optimizer.state.get(p, {})
+            state_copy = {}
+            for k, v in state.items():
+                if torch.is_tensor(v):
+                    state_copy[k] = v.detach().clone()
+                else:
+                    state_copy[k] = v
+            old_states.append(state_copy)
 
         # ----- rule update -----
         with torch.no_grad():
-            for p in params:
+            self.update_adam_model()
+            for p, group in zip(params, param_groups):
                 if p.grad is None:
                     continue
-
-                # AdamW form
-                p.mul_(1 - lr * wd)
-                p.add_(rule_fn(p), alpha=lr)
+                if self._is_muon_group(group):
+                    lr = group.get("lr", self.start_lr)
+                    wd = group.get("weight_decay", 0.0)
+                    p.mul_(1 - lr * wd)
+                    p.add_(rule_fn(p), alpha=lr)
 
         rule_params = [p.detach().clone() for p in params]
 
         # restore
         for p, p_old in zip(params, old_params):
             p.data.copy_(p_old)
+        for p, g_old in zip(params, old_grads):
+            if g_old is None:
+                p.grad = None
+            else:
+                if p.grad is None:
+                    p.grad = g_old.clone()
+                else:
+                    p.grad.copy_(g_old)
+        for p, state_old in zip(params, old_states):
+            state = optimizer.state[p]
+            state.clear()
+            for k, v in state_old.items():
+                state[k] = v.detach().clone() if torch.is_tensor(v) else v
 
         # ----- optimizer update -----
         optimizer.step()
@@ -291,6 +446,19 @@ class LineSearchScheduler():
         # restore original params
         for p, p_old in zip(params, old_params):
             p.data.copy_(p_old)
+        for p, g_old in zip(params, old_grads):
+            if g_old is None:
+                p.grad = None
+            else:
+                if p.grad is None:
+                    p.grad = g_old.clone()
+                else:
+                    p.grad.copy_(g_old)
+        for p, state_old in zip(params, old_states):
+            state = optimizer.state[p]
+            state.clear()
+            for k, v in state_old.items():
+                state[k] = v.detach().clone() if torch.is_tensor(v) else v
 
     @torch.no_grad()
     def test_update_restore_max_diff(self, alpha):
@@ -301,13 +469,13 @@ class LineSearchScheduler():
         Returns:
             max |Δparam|
         """
-        params = self.paras
+        params = self._optimizer_params() if self.optimizer_type == "Muon" else self.paras
         backup = [p.detach().clone() for p in params]
 
-
+        self.update_adam_model()
         self.update_model(alpha)
-        # print(f"ca, {cached_dirs}")
         self.restore_model(alpha)
+        self.restore_adam_model()
 
         max_diff = 0.0
         for p, p0 in zip(params, backup):
@@ -328,7 +496,7 @@ class LineSearchScheduler():
 
         
 
-    def step(self, closure, condition="armijo", c1=0.6, factor=0.5, amax=1.0, amin=1e-6, step=0, interval=100, warmup_length=100, log_dir="./"):
+    def step(self, closure, condition="armijo", c1=0.6, factor=0.5, amax=1.0, amin=1e-6, step=0, interval=100, warmup_length=100, log_dir="./", start_lr=1):
         """
         condition: Line Search condition. Option: armijo,
         search_mode: Option: backtracking, forward, interpolate
@@ -338,10 +506,11 @@ class LineSearchScheduler():
         interval: perform line search every {interval} steps.
         """
         k = step % interval 
-        alpha = self.optimizer.param_groups[0]["lr"]
+        alpha = self.optimizer.param_groups[self.controlled_group_indices[0]]["lr"]
         if step < warmup_length:
             interval = warmup_length
-    
+
+
 
         if k != 0 and step != warmup_length: 
             if self.prev_alpha >= self.line_search_alpha: 
@@ -353,83 +522,145 @@ class LineSearchScheduler():
                 lr = self.prev_alpha + cosine_frac * (
                     self.line_search_alpha - self.prev_alpha
                 )
-                for param_group in self.optimizer.param_groups: 
-                    param_group['lr'] = lr
-                return
-            warmup_frac = (k + 1) / interval
-            lr = self.prev_alpha + warmup_frac * (self.line_search_alpha - self.prev_alpha)
-            for param_group in self.optimizer.param_groups: 
-                param_group['lr'] = lr 
+            else:
+                warmup_frac = (k + 1) / interval
+                lr = self.prev_alpha + warmup_frac * (self.line_search_alpha - self.prev_alpha)
+            
+    
+
+            # print("denom", denom, "line_search_magnitude", self.line_search_magnitude, "prev_magnitude", self.prev_magnitude, "magnitude", self.magnitude, "lr", lr)
+            for group_idx in self.controlled_group_indices:
+                self.optimizer.param_groups[group_idx]["lr"] = lr
             return
 
-
         self.optimizer.zero_grad(set_to_none=True)
-        # loss = closure(require_grad=True)
+
+        loss = closure(require_grad=True)
+
         self.rule = self.get_potential_update_direction()
 
-        # inner = 0.0
-        # with torch.no_grad():
-        #     for group in self.optimizer.param_groups:
-        #             wd = group.get("weight_decay", 0.0)
-        #             for p in group["params"]:
-        #                 if p.grad is None:
-        #                     continue     
-        #                 inner += torch.sum(p.grad * self.rule(p))
-        #                 inner -= wd * torch.sum(p.grad * p)
-        # phi0, derphi0 = loss, inner.detach()
-        loss_sum = 0
-
-        for _ in range(self.K):
-            noises = self.perturb_parameters_global_(self.rho)
-
-            try:
-                loss_p = closure(require_grad=True)
-                loss_sum += loss_p
-            finally:
-                self.restore_parameters_(noises)
-
-        # # average gradient
+        muon_inner = 0.0
+        adam_const = 0.0
         with torch.no_grad():
-            for group in self.optimizer.param_groups:
+            for group_idx in self._muon_group_indices():
+                group = self.optimizer.param_groups[group_idx]
+                wd = group.get("weight_decay", 0.0)
                 for p in group["params"]:
-                    if p.grad is not None:
-                        p.grad.div_(self.K)
-
-        phi0 = loss_sum / self.K 
-
-        # directional derivative at smoothed point
-        inner = 0.0
-        with torch.no_grad():
-            for group in self.optimizer.param_groups:
-                for p in group["params"]:
-                    wd = group.get("weight_decay", 0.0)
                     if p.grad is None:
                         continue
-                    inner += torch.sum(p.grad * self.rule(p))
-                    inner -= wd * torch.sum(p.grad * p)
+                    muon_inner += torch.sum(p.grad * self.rule(p))
+                    muon_inner -= wd * torch.sum(p.grad * p)
+            for group_idx in self._adam_group_indices():
+                group = self.optimizer.param_groups[group_idx]
+                lr_group = group.get("lr", self.start_lr)
+                wd = group.get("weight_decay", 0.0)
+                for p in group["params"]:
+                    if p.grad is None:
+                        continue
+                    adam_const += lr_group * torch.sum(p.grad * self.rule(p))
+                    adam_const -= lr_group * wd * torch.sum(p.grad * p)
+        phi0 = loss
+        derphi0 = muon_inner.detach()
+        adam_const = adam_const.detach()
 
-        derphi0 = inner.detach()
+     
+        grad_sq = 0.0
+        dir_sq = 0.0
+        param_sq = 0.0
+        dot_gd = 0.0
+        dot_gp = 0.0
 
-        # self.test_update_restore_max_diff(alpha=alpha)
-        # self.check_optimizer_step_vs_rule(
-        #     optimizer=self.optimizer,
-        #     rule_fn=self.rule,
-        # )
+        max_grad = 0.0
+        max_dir = 0.0
+
+        with torch.no_grad():
+            for group_idx in self._muon_group_indices():
+                group = self.optimizer.param_groups[group_idx]
+                wd = group.get("weight_decay", 0.0)
+
+                for p in group["params"]:
+                    if p.grad is None:
+                        continue
+
+                    g = p.grad
+                    d = self.rule(p)
+
+
+                    grad_sq += torch.sum(g * g).item()
+                    dir_sq += torch.sum(d * d).item()
+                    param_sq += torch.sum(p * p).item()
+
+                    # ===== dot product =====
+                    gd = torch.sum(g * d).item()
+                    gp = torch.sum(g * p).item()
+
+                    dot_gd += gd
+                    dot_gp += gp
+
+                    # ===== max element =====
+                    max_grad = max(max_grad, g.abs().max().item())
+                    max_dir = max(max_dir, d.abs().max().item())
+
+
+        grad_norm = grad_sq ** 0.5
+        dir_norm = dir_sq ** 0.5
+        param_norm = param_sq ** 0.5
+
+
+        # cos_gd = dot_gd / (grad_norm * dir_norm + 1e-12)
+
+
+        # inner = dot_gd - wd * dot_gp
+
+        phi0, derphi0 = loss, muon_inner
+
+
+ 
+        print("\n========== Line Search Debug ==========")
+        print(f"loss (phi0): {phi0}")
+        print(f"derphi0: {derphi0}")
+        print(f"adam_const: {adam_const}")
+
+        print("\n--- Norms ---")
+        print(f"grad_norm: {grad_norm:.6f}")
+        print(f"dir_norm:  {dir_norm:.6f}")
+        print(f"param_norm:{param_norm:.6f}")
+
+
+
+        self.test_update_restore_max_diff(alpha=alpha)
+        self.check_optimizer_step_vs_rule(
+            optimizer=self.optimizer,
+            rule_fn=self.rule,
+        )
         
         if derphi0 > 0: 
             # self.clear_momentum()
             print(f"ASCENT!!!, old derphi0 {derphi0}")
             self.rule = self.get_potential_update_direction(fallback_to_neg_grad=True)
-            inner = 0.0
+            muon_inner = 0.0
+            adam_const = 0.0
             with torch.no_grad():
-                for group in self.optimizer.param_groups:
-                        for p in group["params"]:
-                            if p.grad is None:
-                                continue
-                            inner += torch.sum(p.grad * self.rule(p))
-                            inner -= wd * torch.sum(p.grad * p)
+                for group_idx in self._muon_group_indices():
+                    group = self.optimizer.param_groups[group_idx]
+                    wd = group.get("weight_decay", 0.0)
+                    for p in group["params"]:
+                        if p.grad is None:
+                            continue
+                        muon_inner += torch.sum(p.grad * self.rule(p))
+                        muon_inner -= wd * torch.sum(p.grad * p)
+                for group_idx in self._adam_group_indices():
+                    group = self.optimizer.param_groups[group_idx]
+                    lr_group = group.get("lr", self.start_lr)
+                    wd = group.get("weight_decay", 0.0)
+                    for p in group["params"]:
+                        if p.grad is None:
+                            continue
+                        adam_const += lr_group * torch.sum(p.grad * self.rule(p))
+                        adam_const -= lr_group * wd * torch.sum(p.grad * p)
 
-            phi0, derphi0 = phi0, inner.detach()
+            phi0, derphi0 = phi0, muon_inner.detach()
+            adam_const = adam_const.detach()
             print(f"ASCENT!!!, new derphi0 {derphi0}")
             
 
@@ -437,9 +668,11 @@ class LineSearchScheduler():
         # gk = [p.grad.detach().clone() if p.grad is not None else None for p in self.paras]
         @torch.no_grad()
         def phi(alpha):
+            self.update_adam_model()
             self.update_model(alpha)
             val = closure(require_grad=False)
             self.restore_model(alpha)
+            self.restore_adam_model()
             return val
     
         # def phi(alpha, n_samples=8, rel=0.02, alpha_min=1e-12, alpha_max=float("inf")):
@@ -450,21 +683,22 @@ class LineSearchScheduler():
         #         a = max(alpha_min, min(a, alpha_max))
         #         s += single_phi(a)          
         #     return s / n_samples
-        ## This can be optimized 
-    
-        alpha0 = self.line_search_alpha
-        # print(f"start searching with alpha = {alpha0}, the prev_alpha is {self.prev_alpha}")
+        # ## This can be optimized 
 
-        if step <= warmup_length:
-            alpha0 = 1e-4
+        # print(f"start searching with alpha = {alpha0}, the prev_alpha is {self.prev_alpha}")
+        alpha0 = self.line_search_alpha
+        if step < warmup_length:
+            alpha0 = 1
             num_search = self.num_search
         else:
             num_search = 1
+    
         
 
         alpha, fc, _ = line_search_armijo(
                     f=phi,
                     derphi0=derphi0,
+                    adam_const=adam_const,
                     phi0=phi0,
                     args=(),
                     c1=c1,
@@ -475,8 +709,8 @@ class LineSearchScheduler():
                     factor=factor,
                     log_dir=log_dir
                 )
-        if step <= warmup_length and alpha < self.prev_alpha:
-            alpha = self.prev_alpha
+        # if step < warmup_length and alpha < self.prev_alpha:
+        #     alpha = self.prev_alpha
         
         # if alpha is None or not np.isfinite(alpha) or alpha <= 0:
         #     current_lr = self.optimizer.param_groups[0]["lr"]
@@ -488,18 +722,20 @@ class LineSearchScheduler():
         #         param_group['lr'] = alpha
 
         self.line_search_alpha = alpha
-        print("LINESEARCH LR:", alpha)
-        # if is_plateau:
-        #    for param_group in self.optimizer.param_groups: 
-        #             param_group['lr'] = alpha
-        self.prev_alpha = self.optimizer.param_groups[0]["lr"]
+        self.prev_alpha = alpha
+        self.line_search_magnitude = alpha * dir_norm
+        print("LINESEARCH LR:", alpha, "magnitude:", self.line_search_magnitude)
+        if step < warmup_length:
+            self.prev_magnitude = self.line_search_magnitude 
+        else:
+            self.prev_magnitude = self.magnitude
 
 
 
 
 
 
-def line_search_armijo(f, derphi0, phi0, args=(), c1=1e-4, alpha0=1, num_search=16, step=0, search_mode="backtrack", factor=0.5, log_dir=""):
+def line_search_armijo(f, derphi0, adam_const, phi0, args=(), c1=1e-4, alpha0=1, num_search=16, step=0, search_mode="backtrack", factor=0.5, log_dir=""):
     """Minimize over alpha, the function ``f(xk+alpha pk)``.
 
     Parameters
@@ -547,115 +783,22 @@ def line_search_armijo(f, derphi0, phi0, args=(), c1=1e-4, alpha0=1, num_search=
     use_ddp = dist.is_initialized() 
     # print(f"USE DDP {use_ddp}")
     if use_ddp:
-            alpha, phi1 = search_bisection_ddp(phi, phi0, derphi0, c1=c1,
+            alpha, phi1 = search_bisection_ddp(phi, phi0, derphi0, adam_const, c1=c1,
                                             old_alpha=alpha0, grow=1/factor, shrink=factor, amax=1, amin=1e-6, num_search=num_search)
             # alpha, phi1 = search_bisection_ddp_visual(phi, phi0, derphi0, c1=c1,
             #                                   old_alpha=alpha0, shrink=factor, grow=1/factor, amax=1, amin=1e-6, num_search=num_search, log_dir=log_dir, global_step=step)
     else:
-            # alpha, phi1 = search_bisection(phi, phi0, derphi0, c1=c1,
-            #                                 old_alpha=alpha0, grow=1/factor, shrink=factor, amax=1, amin=1e-6, num_search=num_search)
-            alpha, phi1 = search_bisection_visual(phi, phi0, derphi0, c1=c1,
-                                                old_alpha=alpha0, shrink=factor, grow=1/factor, amax=1, amin=1e-6, num_search=num_search, log_dir=log_dir, global_step=step)
+            alpha, phi1 = search_bisection(phi, phi0, derphi0, adam_const, c1=c1,
+                                            old_alpha=alpha0, grow=1/factor, shrink=factor, amax=1, amin=1e-6, num_search=num_search)
+            # alpha, phi1 = search_bisection_visual(phi, phi0, derphi0, c1=c1,
+            #                                               old_alpha=alpha0, shrink=factor, grow=1/factor, amax=1, amin=1e-6, num_search=num_search, log_dir=log_dir, global_step=step)
     
     
-    # if search_mode == "backtrack":
-    #     # alpha, phi1 = search_backtracking_visual(phi, phi0, derphi0, c1=c1,
-    #     #                                 alpha=alpha0, shrink=factor, plot_path=f"backtracking_{step}.png")
-    #     alpha, phi1 = search_backtracking(phi, phi0, derphi0, c1=c1,
-    #                                     alpha=alpha0, shrink=factor, num_search=num_search)
-    # elif search_mode == "forward":
-    #     alpha, phi1 = search_forward(phi, phi0, derphi0, c1=c1,
-    #                                        alpha=alpha0, grow=1/factor, shrink=factor, amax=1, num_search=num_search)
-    # elif search_mode == "bisection":
-    #      use_ddp = dist.is_initialized() and dist.get_world_size() > 1
-    #      if use_ddp:
-    #         alpha, phi1 = search_bisection_ddp(phi, phi0, derphi0, c1=c1,
-    #                                         old_alpha=alpha0, grow=1/factor, shrink=factor, amax=1, num_search=num_search)
-    #      else:
-    #         alpha, phi1 = search_bisection(phi, phi0, derphi0, c1=c1,
-    #                                         old_alpha=alpha0, grow=1/factor, shrink=factor, amax=1, num_search=num_search)
-    # else:
-    #     alpha, phi1 = scalar_search_armijo(phi, phi0, derphi0, c1=c1,
-    #                                     alpha0=alpha0)
+
     return alpha, fc[0], phi1
 
 
 
-
-# def scalar_search_armijo(phi, phi0, derphi0, c1=1e-4, alpha0=1, amin=0):
-#     """Minimize over alpha, the function ``phi(alpha)``.
-
-#     Uses the interpolation algorithm (Armijo backtracking) as suggested by
-#     Wright and Nocedal in 'Numerical Optimization', 1999, pp. 56-57
-
-#     alpha > 0 is assumed to be a descent direction.
-
-#     Returns
-#     -------
-#     alpha
-#     phi1
-
-#     """
-#     phi_a0 = phi(alpha0)
-#     if phi_a0 <= phi0 + c1*alpha0*derphi0:
-#         return alpha0, phi_a0
-
-#     # Otherwise, compute the minimizer of a quadratic interpolant:
-
-#     alpha1 = -(derphi0) * alpha0**2 / 2.0 / (phi_a0 - phi0 - derphi0 * alpha0)
-#     phi_a1 = phi(alpha1)
-
-#     if (phi_a1 <= phi0 + c1*alpha1*derphi0):
-#         return alpha1, phi_a1
-
-#     # Otherwise, loop with cubic interpolation until we find an alpha which
-#     # satisfies the first Wolfe condition (since we are backtracking, we will
-#     # assume that the value of alpha is not too small and satisfies the second
-#     # condition.
-
-#     while alpha1 > amin:       # we are assuming alpha>0 is a descent direction
-#         factor = alpha0**2 * alpha1**2 * (alpha1-alpha0)
-#         a = alpha0**2 * (phi_a1 - phi0 - derphi0*alpha1) - \
-#             alpha1**2 * (phi_a0 - phi0 - derphi0*alpha0)
-#         a = a / factor
-#         b = -alpha0**3 * (phi_a1 - phi0 - derphi0*alpha1) + \
-#             alpha1**3 * (phi_a0 - phi0 - derphi0*alpha0)
-#         b = b / factor
-
-#         alpha2 = (-b + np.sqrt(abs(b**2 - 3 * a * derphi0))) / (3.0*a)
-#         phi_a2 = phi(alpha2)
-
-#         if (phi_a2 <= phi0 + c1*alpha2*derphi0):
-#             return alpha2, phi_a2
-
-#         if (alpha1 - alpha2) > alpha1 / 2.0 or (1 - alpha2/alpha1) < 0.96:
-#             alpha2 = alpha1 / 2.0
-
-#         alpha0 = alpha1
-#         alpha1 = alpha2
-#         phi_a0 = phi_a1
-#         phi_a1 = phi_a2
-
-#     # Failed to find a suitable step length
-#     return None, phi_a1
-
-
-# def search_forward(phi, phi0, derphi0, c1, alpha, grow, shrink, amax, num_search):
-
-#     # Try expanding
-#     phi_a = phi(alpha)
-#     count = 0
-#     while phi_a <= phi0 + c1 * alpha * derphi0 and alpha < amax and count < num_search:
-#         alpha *= grow
-#         phi_a = phi(alpha)
-#         count += 1
-
-#     # Overshoot → shrink until good
-#     while phi_a > phi0 + c1 * alpha * derphi0:
-#         alpha *= shrink
-#         phi_a = phi(alpha)
-
-#     return alpha, phi_a
 
 def search_bisection_ddp_visual(phi, phi0, derphi0, c1,
                      old_alpha, grow=2.0, shrink=0.5,
@@ -902,7 +1045,7 @@ def search_bisection_ddp_visual(phi, phi0, derphi0, c1,
 def search_bisection_visual(phi, phi0, derphi0, c1,
                      old_alpha, grow=2.0, shrink=0.5,
                      amax=1, amin=1e-6, num_search=10,
-                    t_min=0.0, t_max=1e-4, num_points=100, log_dir=None, global_step=0):
+                    t_min=0.0, t_max=3e-3, num_points=100, log_dir=None, global_step=0):
     """Non-DDP visual version of bisection/backtracking search.
 
     Mirrors `search_bisection_ddp_visual` but without torch.distributed calls.
@@ -987,23 +1130,6 @@ def search_bisection_visual(phi, phi0, derphi0, c1,
     plt.title("Backtracking Line Search Visualization")
     plt.grid(True)
     plt.legend()
-
-    # Set y-limits to the min/max of sampled phi values with a small padding
-    try:
-        y_min = float(np.min(phi_vals))
-        y_max = float(np.max(phi_vals))
-        print(y_min, y_max)
-        if not np.isfinite(y_min) or not np.isfinite(y_max):
-            raise ValueError
-        # small relative padding (or absolute if range is tiny)
-        y_range = y_max - y_min
-        pad = max(1e-12, 0.02 * y_range) if y_range > 0 else max(1e-12, abs(y_min) * 0.02)
-        plt.ylim(y_min - pad, y_max + pad)
-    except Exception:
-        # fallback: keep existing x-only limit if something goes wrong
-        pass
-
-
     plt.xlim(0.0, t_max)
     plt.savefig(plot_path, dpi=200)
     plt.close()
@@ -1016,7 +1142,7 @@ def search_bisection_visual(phi, phi0, derphi0, c1,
 
 
 
-def search_bisection_ddp(phi, phi0, derphi0, c1,
+def search_bisection_ddp(phi, phi0, derphi0, adam_const, c1,
                      old_alpha, grow=2.0, shrink=0.5,
                      amax=1, amin=1e-6, num_search=10,
                     plot_path="./img/backtracking_ls.png",
@@ -1037,7 +1163,7 @@ def search_bisection_ddp(phi, phi0, derphi0, c1,
     loss_list = [phi0, phi_a]
 
     if rank == 0:
-        armijo_old_work = phi_a <= phi0 + c1 * alpha * derphi0
+        armijo_old_work = phi_a <= phi0 + c1 * (alpha * derphi0 + adam_const)
     armijo_flag = torch.tensor(
                 [int(armijo_old_work)] if rank == 0 else [0],
                 device=device,
@@ -1074,7 +1200,7 @@ def search_bisection_ddp(phi, phi0, derphi0, c1,
 
 
                 if rank == 0:
-                    accept = new_phi > phi0 + c1 * new_alpha * derphi0
+                    accept = new_phi > phi0 + c1 * (new_alpha * derphi0 + adam_const)
                 accept_flag = torch.tensor(
                             [int(accept)] if rank == 0 else [0],
                             device=device,
@@ -1121,7 +1247,7 @@ def search_bisection_ddp(phi, phi0, derphi0, c1,
 
 
                 if rank == 0:
-                    accept = new_phi <= phi0 + c1 * new_alpha * derphi0
+                    accept = new_phi <= phi0 + c1 * (new_alpha * derphi0 + adam_const)
                     if len(loss_list) >= 3:
                         rng = max(loss_list) - min(loss_list)
                         r_range = rng / max(abs(phi_a), 1e-12)
@@ -1158,7 +1284,7 @@ def search_bisection_ddp(phi, phi0, derphi0, c1,
             return alpha, phi_a
 
 
-def search_bisection(phi, phi0, derphi0, c1,
+def search_bisection(phi, phi0, derphi0, adam_const, c1,
                      old_alpha, grow=2.0, shrink=0.5,
                      amax=1, amin=1e-6, num_search=10):
 
@@ -1167,7 +1293,7 @@ def search_bisection(phi, phi0, derphi0, c1,
     # phi_old = phi_a
     # flat_eps = 5e-2
 
-    armijo_old = phi_a <= phi0 + c1 * alpha * derphi0
+    armijo_old = phi_a <= phi0 + c1 * (alpha * derphi0 + adam_const)
     # loss_list = [phi0, phi_a]
     # print(f"{armijo_old}, {phi_a}, {phi0}, {alpha}, {derphi0}")
     if armijo_old:
@@ -1179,7 +1305,7 @@ def search_bisection(phi, phi0, derphi0, c1,
 
             new_phi = phi(new_alpha)
 
-            if new_phi > phi0 + c1 * new_alpha * derphi0:
+            if new_phi > phi0 + c1 * (new_alpha * derphi0 + adam_const):
                 break
 
     
@@ -1200,18 +1326,10 @@ def search_bisection(phi, phi0, derphi0, c1,
             # loss_list.append(new_phi)
 
         
-            if new_phi <= phi0 + c1 * new_alpha * derphi0:
+            if new_phi <= phi0 + c1 * (new_alpha * derphi0 + adam_const):
                 break
 
-            # if len(loss_list) >= 3:
-            #             rng = max(loss_list) - min(loss_list)
-            #             r_range = rng / max(abs(phi_a), 1e-12)
-            #             # flat_region = r_range <= flat_eps
-            # else:
-                        # flat_region = False
-            # if flat_region:
-            #             print(f" Flat Region: {flat_region}. loss list: {loss_list}, maxdiff : {max(loss_list) - min(loss_list)}")
-            #             return old_alpha, phi_old 
+
 
             alpha = new_alpha
             phi_a = new_phi
@@ -1322,96 +1440,3 @@ def search_backtracking_visual(
 
 
 
-# def search_backtracking_visual_ddp(
-#     phi, phi0, derphi0,
-#     c1, alpha, shrink,
-#     plot_path="backtracking_ls.png",
-#     t_min=0.0, t_max=1.0, num_points=30,
-#     max_bt=4,
-# ):
-#     import numpy as np
-#     import torch
-#     import torch.distributed as dist
-#     import matplotlib.pyplot as plt
-
-#     # ---------- helpers (inline, no extra functions) ----------
-#     ddp_on = dist.is_available() and dist.is_initialized()
-#     rank = dist.get_rank() if ddp_on else 0
-#     world_size = dist.get_world_size() if ddp_on else 1
-#     is_rank0 = (rank == 0)
-
-#     def reduce_mean_scalar(x):
-#         if not ddp_on:
-#             return float(x) if not torch.is_tensor(x) else float(x.detach().item())
-#         if not torch.is_tensor(x):
-#             x = torch.tensor(float(x), device="cuda" if torch.cuda.is_available() else "cpu")
-#         else:
-#             x = x.detach()
-#             if x.dim() != 0:
-#                 x = x.reshape(())
-#         dist.all_reduce(x, op=dist.ReduceOp.SUM)
-#         x /= world_size
-#         return float(x.item())
-
-#     # ---------- make phi0 / derphi0 globally consistent ----------
-#     phi0_g = reduce_mean_scalar(phi0)
-#     derphi0_g = reduce_mean_scalar(derphi0)
-
-#     explored = []  # only used on rank0
-
-#     # ---------- Backtracking loop (ALL ranks follow same control flow) ----------
-#     phi_a_local = phi(alpha)
-#     phi_a = reduce_mean_scalar(phi_a_local)
-
-#     if is_rank0:
-#         explored.append((alpha, phi_a))
-
-#     count = 0
-#     while phi_a > phi0_g + c1 * alpha * derphi0_g:
-#         count += 1
-#         if count > max_bt:
-#             break
-
-#         alpha *= shrink
-
-#         phi_a_local = phi(alpha)
-#         phi_a = reduce_mean_scalar(phi_a_local)
-
-#         if is_rank0:
-#             explored.append((alpha, phi_a))
-
-#     chosen_alpha, chosen_phi = alpha, phi_a
-
-#     # ---------- Visualization (ONLY rank0) ----------
-#     if is_rank0:
-#         t_vals = np.linspace(t_min, t_max, num_points)
-#         phi_vals = []
-#         for t in t_vals:
-#             v_local = phi(float(t))
-#             v = reduce_mean_scalar(v_local)
-#             phi_vals.append(v)
-#         phi_vals = np.array(phi_vals)
-
-#         armijo_line = phi0_g + c1 * t_vals * derphi0_g
-
-#         plt.figure(figsize=(8, 6))
-#         plt.plot(t_vals, phi_vals, label="phi(t)", linewidth=2)
-#         plt.plot(t_vals, armijo_line, "--", label="Armijo line", linewidth=2)
-
-#         for i, (a, v) in enumerate(explored):
-#             plt.scatter(a, v, color="red", s=60)
-#             plt.annotate("init" if i == 0 else f"bt {i}",
-#                          (a, v), textcoords="offset points", xytext=(5, 5))
-
-#         plt.scatter(chosen_alpha, chosen_phi,
-#                     color="blue", s=120, marker="x", label="chosen alpha")
-
-#         plt.xlabel("t (step size)")
-#         plt.ylabel("phi(t)")
-#         plt.title("Backtracking Line Search Visualization (DDP)")
-#         plt.grid(True)
-#         plt.legend()
-#         plt.savefig(plot_path, dpi=200)
-#         plt.close()
-
-#     return chosen_alpha, chosen_phi# Copyright (c) Meta Platforms, Inc. and affiliates.

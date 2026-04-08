@@ -12,11 +12,20 @@ import torch.distributed as dist
 # from absl import logging
 from torch.nn.functional import cosine_similarity
 import matplotlib.pyplot as plt
-import os
-import csv
+from muon import zeropower_via_newtonschulz5
+
+# Fix random seeds for reproducibility
+_SEED = 42
+random.seed(_SEED)
+np.random.seed(_SEED)
+torch.manual_seed(_SEED)
+if torch.cuda.is_available():
+    torch.cuda.manual_seed_all(_SEED)
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
 
 class LineSearchScheduler():
-    def __init__(self, optimizer, start_lr, model_paras, num_search=16, optimizer_type="SGD", injection=True, search_mode="backtrack", warmup_length=100, num_perturb_samples=3, rho=0.001):
+    def __init__(self, optimizer, start_lr, model_paras, num_search=16, optimizer_type="SGD", injection=True, search_mode="backtrack", warmup_length=100, num_perturb_samples=3, rho=0.001, controlled_group_indices=None):
         """
         num_search: maximum number of searches
         start_lr: maximum LR to start if backtrack/ minimum LR to start if forward
@@ -33,29 +42,25 @@ class LineSearchScheduler():
         self.injection=injection
         self.prev_fvals = deque(maxlen=2)
         self.line_search_alpha = start_lr
+        self.line_search_magnitude = start_lr
+        self.prev_magnitude = start_lr
+        self.magnitude = start_lr
         self.warmup_length = warmup_length
         self.prev_alpha = start_lr
         self.search_mode = search_mode
         self.K = num_perturb_samples
         self.rho = rho
-        for pg in self.optimizer.param_groups:
-            pg["lr"] = self.start_lr
+        self.controlled_group_indices = list(range(len(self.optimizer.param_groups))) if controlled_group_indices is None else list(controlled_group_indices)
+        self.controlled_group_index_set = set(self.controlled_group_indices)
+        self.param_to_group = {}
+        for group in self.optimizer.param_groups:
+            for p in group["params"]:
+                self.param_to_group[id(p)] = group
+        for group_idx in self.controlled_group_indices:
+            self.optimizer.param_groups[group_idx]["lr"] = self.start_lr
         self.paras = model_paras
         # self.injection_distribution = self._generate_long_tail_distribution()
         self.rule = self.get_potential_update_direction()
-        self.log_dir = "./observation"
-        # ensure log directory exists and prepare csv file for observations
-        os.makedirs(self.log_dir, exist_ok=True)
-        self.log_path = os.path.join(self.log_dir, "observations.csv")
-        # Only create/write header from rank 1 when using DDP, or always in single-process
-        use_ddp_init = dist.is_available() and dist.is_initialized()
-        rank_init = dist.get_rank() if use_ddp_init else 0
-        if (not use_ddp_init) or (rank_init == 1):
-            # write header if file does not exist
-            if not os.path.exists(self.log_path):
-                with open(self.log_path, "w", newline='') as f:
-                    writer = csv.writer(f)
-                    writer.writerow(["step", "loss", "lr", "gradient_norm", "dir_norm", "inner", "mag", "ls_loss_decre"])
 
     
     
@@ -67,6 +72,10 @@ class LineSearchScheduler():
     def state_dict(self):
         return {
             'last_lr': self.prev_alpha,
+            'line_search_alpha': self.line_search_alpha,
+            'line_search_magnitude': self.line_search_magnitude,
+            'prev_magnitude': self.prev_magnitude,
+            'magnitude': self.magnitude,
         }
     
     def load_state_dict(self, state_dict):
@@ -74,10 +83,16 @@ class LineSearchScheduler():
             raise TypeError(f"Expected dict, got {type(state_dict)}")
 
         self.prev_alpha = state_dict.get('last_lr', self.start_lr)
+        self.line_search_alpha = state_dict.get('line_search_alpha', self.start_lr)
+        self.line_search_magnitude = state_dict.get('line_search_magnitude', self.start_lr)
+        self.prev_magnitude = state_dict.get('prev_magnitude', self.start_lr)
+        self.magnitude = state_dict.get('magnitude', self.start_lr)
 
     def get_potential_update_direction(self, fallback_to_neg_grad=False):
         if self.optimizer_type == "AdamW":
             return self.get_potential_adam_update_direction(fallback_to_neg_grad)
+        elif self.optimizer_type == "Muon":
+            return self.get_potential_muon_update_direction(fallback_to_neg_grad)
         elif self.optimizer_type == "SGD_momentum":
             return self.get_potential_sgd_momentum_update_direction(fallback_to_neg_grad)
         elif self.optimizer_type == "SGD":
@@ -115,8 +130,80 @@ class LineSearchScheduler():
 
         return rule
 
+    def _is_muon_group(self, group):
+        if "use_muon" in group:
+            return bool(group["use_muon"])
+        return True
+
+    def _trial_lr_for_group(self, group, alpha):
+        if self.optimizer_type == "Muon" and not self._is_muon_group(group):
+            return group.get("lr", self.start_lr)
+        return alpha
+
+    def _optimizer_params(self):
+        params = []
+        for group in self.optimizer.param_groups:
+            for p in group["params"]:
+                if p.requires_grad:
+                    params.append(p)
+        return params
+
+    def _adam_direction_for_param(self, p, group, fallback_to_neg_grad=False):
+        g = p.grad
+        if g is None:
+            return torch.zeros_like(p)
+
+        if fallback_to_neg_grad:
+            return -g
+
+        eps = group.get("eps", 1e-8)
+        beta1, beta2 = group.get("betas", (0.9, 0.999))
+        st = self.optimizer.state.get(p, {})
+        if (
+            "exp_avg" in st
+            and "exp_avg_sq" in st
+            and st.get("step", 0) > 0
+        ):
+            m = st["exp_avg"]
+            v = st["exp_avg_sq"]
+            t = st["step"] + 1
+            m_new = beta1 * m + (1 - beta1) * g
+            v_new = beta2 * v + (1 - beta2) * (g * g)
+            m_hat = m_new / (1 - beta1 ** t)
+            v_hat = v_new / (1 - beta2 ** t)
+            return -m_hat / (v_hat.sqrt() + eps)
+
+        return -g / (g.abs() + eps)
+    
+
+    def get_potential_muon_update_direction(self, fallback_to_neg_grad=True):
+        def rule(p):
+            g = p.grad
+            if g is None:
+                return torch.zeros_like(p)
+
+            group = self.param_to_group.get(id(p), {})
+            if not self._is_muon_group(group):
+                return self._adam_direction_for_param(p, group, fallback_to_neg_grad)
+
+            if p.ndim < 2:
+                return -g if fallback_to_neg_grad else torch.zeros_like(p)
+
+            momentum = group.get("momentum", 0.95)
+            st = self.optimizer.state.get(p, {})
+            buf = st["momentum_buffer"] if "momentum_buffer" in st else torch.zeros_like(p)
+            next_buf = torch.lerp(buf, g, 1 - momentum)
+            update = torch.lerp(g, next_buf, momentum)
+            if update.ndim == 4:
+                update = update.view(len(update), -1)
+            update = zeropower_via_newtonschulz5(update, steps=5)
+            update *= max(1, update.size(-2) / update.size(-1)) ** 0.5
+            return -update.reshape(p.shape)
+
+        return rule
+
     def get_potential_adam_update_direction(self, fallback_to_neg_grad=False):
-        pg0 = self.optimizer.param_groups[0]
+        pg0 = self.optimizer.param_groups[self.controlled_group_indices[0]]
         eps = pg0.get("eps", 1e-8)
         beta1, beta2 = pg0.get("betas", (0.9, 0.999))
         wd = pg0.get("weight_decay", 0)
@@ -188,31 +275,32 @@ class LineSearchScheduler():
         """
         Trial update: p <- p + alpha * rule(p)
         """
-        # max_d = 0.0
-        wd = self.optimizer.param_groups[0].get("weight_decay", 0.0)
-        # print(f"weight_decay {wd}")
-        for group in self.optimizer.param_groups:
+        group_indices = self.controlled_group_indices
+
+        for group_idx in group_indices:
+            group = self.optimizer.param_groups[group_idx]
+            lr = alpha
+            wd = group.get("weight_decay", 0.0)
             for p in group["params"]:
                 if p.grad is None:
-                    # print("GRADIENT IS NONE!!! at 0")
                     continue
-                p.mul_(1 - alpha * wd)
-                p.add_(self.rule(p), alpha=alpha)  
-                
-
-    
-        # print(f"[debug] alpha={alpha}, max|d|={max_d}")
+                p.mul_(1 - lr * wd)
+                p.add_(self.rule(p), alpha=lr)
 
     @torch.no_grad()
     def restore_model(self, alpha):
-        wd = self.optimizer.param_groups[0].get("weight_decay", 0)
-        for group in self.optimizer.param_groups:
-                for p in group["params"]:
-                    if p.grad is None:
-                        print("GRADIENT IS NONE!!! at 0")
-                        continue
-                    p.add_(self.rule(p), alpha=-alpha)
-                    p.div_(1 - alpha * wd)
+        group_indices = self.controlled_group_indices
+
+        for group_idx in group_indices:
+            group = self.optimizer.param_groups[group_idx]
+            lr = alpha
+            wd = group.get("weight_decay", 0.0)
+            for p in group["params"]:
+                if p.grad is None:
+                    print("GRADIENT IS NONE!!! at 0")
+                    continue
+                p.add_(self.rule(p), alpha=-lr)
+                p.div_(1 - lr * wd)
   
 
 
@@ -259,28 +347,42 @@ class LineSearchScheduler():
         prefix="[LineSearchScheduler]"
     ):
         params = []
+        param_groups = []
         for group in optimizer.param_groups:
             for p in group["params"]:
                 if p.requires_grad:
                     params.append(p)
+                    param_groups.append(group)
 
         if len(params) == 0:
             print(f"{prefix} no parameters found")
             return
 
-        lr = optimizer.param_groups[0]["lr"]
-        wd = optimizer.param_groups[0].get("weight_decay", 0)
-
         # save params
         old_params = [p.detach().clone() for p in params]
+        old_grads = [
+            None if p.grad is None else p.grad.detach().clone()
+            for p in params
+        ]
+        old_states = []
+        for p in params:
+            state = optimizer.state.get(p, {})
+            state_copy = {}
+            for k, v in state.items():
+                if torch.is_tensor(v):
+                    state_copy[k] = v.detach().clone()
+                else:
+                    state_copy[k] = v
+            old_states.append(state_copy)
 
         # ----- rule update -----
         with torch.no_grad():
-            for p in params:
+            for p, group in zip(params, param_groups):
                 if p.grad is None:
                     continue
 
-                # AdamW form
+                lr = self._trial_lr_for_group(group, group.get("lr", self.start_lr))
+                wd = group.get("weight_decay", 0.0)
                 p.mul_(1 - lr * wd)
                 p.add_(rule_fn(p), alpha=lr)
 
@@ -289,6 +391,19 @@ class LineSearchScheduler():
         # restore
         for p, p_old in zip(params, old_params):
             p.data.copy_(p_old)
+        for p, g_old in zip(params, old_grads):
+            if g_old is None:
+                p.grad = None
+            else:
+                if p.grad is None:
+                    p.grad = g_old.clone()
+                else:
+                    p.grad.copy_(g_old)
+        for p, state_old in zip(params, old_states):
+            state = optimizer.state[p]
+            state.clear()
+            for k, v in state_old.items():
+                state[k] = v.detach().clone() if torch.is_tensor(v) else v
 
         # ----- optimizer update -----
         optimizer.step()
@@ -308,6 +423,19 @@ class LineSearchScheduler():
         # restore original params
         for p, p_old in zip(params, old_params):
             p.data.copy_(p_old)
+        for p, g_old in zip(params, old_grads):
+            if g_old is None:
+                p.grad = None
+            else:
+                if p.grad is None:
+                    p.grad = g_old.clone()
+                else:
+                    p.grad.copy_(g_old)
+        for p, state_old in zip(params, old_states):
+            state = optimizer.state[p]
+            state.clear()
+            for k, v in state_old.items():
+                state[k] = v.detach().clone() if torch.is_tensor(v) else v
 
     @torch.no_grad()
     def test_update_restore_max_diff(self, alpha):
@@ -345,7 +473,7 @@ class LineSearchScheduler():
 
         
 
-    def step(self, closure, condition="armijo", c1=0.6, factor=0.5, amax=1.0, amin=1e-6, step=0, interval=100, warmup_length=100, log_dir="./"):
+    def step(self, closure, condition="armijo", c1=0.6, factor=0.5, amax=1.0, amin=1e-6, step=0, interval=100, warmup_length=100, log_dir="./", start_lr=1):
         """
         condition: Line Search condition. Option: armijo,
         search_mode: Option: backtracking, forward, interpolate
@@ -355,27 +483,45 @@ class LineSearchScheduler():
         interval: perform line search every {interval} steps.
         """
         k = step % interval 
-        alpha = self.optimizer.param_groups[0]["lr"]
+        alpha = self.optimizer.param_groups[self.controlled_group_indices[0]]["lr"]
         if step < warmup_length:
             interval = warmup_length
 
         if k != 0 and step != warmup_length: 
-            if self.prev_alpha >= self.line_search_alpha: 
+            if self.prev_magnitude >= self.line_search_magnitude: 
                 # progress in [0, 1]
                 t = (k + 1) / interval
                 # cosine interpolation (smooth start & end)
                 cosine_frac = 0.5 * (1 - math.cos(math.pi * t))
                 # lr = self.line_search_alpha
-                lr = self.prev_alpha + cosine_frac * (
-                    self.line_search_alpha - self.prev_alpha
+                magnitude = self.prev_magnitude + cosine_frac * (
+                    self.line_search_magnitude - self.prev_magnitude
                 )
-                for param_group in self.optimizer.param_groups: 
-                    param_group['lr'] = lr
-                return
-            warmup_frac = (k + 1) / interval
-            lr = self.prev_alpha + warmup_frac * (self.line_search_alpha - self.prev_alpha)
-            for param_group in self.optimizer.param_groups: 
-                param_group['lr'] = lr 
+            else:
+                warmup_frac = (k + 1) / interval
+                magnitude = self.prev_magnitude + warmup_frac * (self.line_search_magnitude - self.prev_magnitude)
+            
+            self.magnitude = magnitude
+    
+
+            # Use magnitude-based learning rate: lr = line_search_magnitude / dir_norm
+            # Fallback to prev_alpha if magnitude not available.
+                # compute current search-direction norm (dir_norm) from rule
+            dir_sq_local = 0.0
+            with torch.no_grad():
+                    for group_idx in self.controlled_group_indices:
+                        group = self.optimizer.param_groups[group_idx]
+                        for p in group["params"]:
+                            d = self.rule(p)
+                            dir_sq_local += torch.sum(d * d).item()
+            dir_norm_local = dir_sq_local ** 0.5
+       
+            denom = dir_norm_local if dir_norm_local > 0 else 1e-12
+            
+            lr = self.magnitude / denom
+            print("denom", denom, "line_search_magnitude", self.line_search_magnitude, "prev_magnitude", self.prev_magnitude, "magnitude", self.magnitude, "lr", lr)
+            for group_idx in self.controlled_group_indices:
+                self.optimizer.param_groups[group_idx]["lr"] = lr
             return
 
         self.optimizer.zero_grad(set_to_none=True)
@@ -385,15 +531,30 @@ class LineSearchScheduler():
         self.rule = self.get_potential_update_direction()
 
         inner = 0.0
+        with torch.no_grad():
+            for group_idx in self.controlled_group_indices:
+                group = self.optimizer.param_groups[group_idx]
+                wd = group.get("weight_decay", 0.0)
+                for p in group["params"]:
+                    if p.grad is None:
+                        continue
+                    inner += torch.sum(p.grad * self.rule(p))
+                    inner -= wd * torch.sum(p.grad * p)
+        phi0, derphi0 = loss, inner.detach()
 
-
+     
+        grad_sq = 0.0
+        dir_sq = 0.0
+        param_sq = 0.0
         dot_gd = 0.0
         dot_gp = 0.0
 
-
+        max_grad = 0.0
+        max_dir = 0.0
 
         with torch.no_grad():
-            for group in self.optimizer.param_groups:
+            for group_idx in self.controlled_group_indices:
+                group = self.optimizer.param_groups[group_idx]
                 wd = group.get("weight_decay", 0.0)
 
                 for p in group["params"]:
@@ -404,6 +565,10 @@ class LineSearchScheduler():
                     d = self.rule(p)
 
 
+                    grad_sq += torch.sum(g * g).item()
+                    dir_sq += torch.sum(d * d).item()
+                    param_sq += torch.sum(p * p).item()
+
                     # ===== dot product =====
                     gd = torch.sum(g * d).item()
                     gp = torch.sum(g * p).item()
@@ -411,22 +576,33 @@ class LineSearchScheduler():
                     dot_gd += gd
                     dot_gp += gp
 
+                    # ===== max element =====
+                    max_grad = max(max_grad, g.abs().max().item())
+                    max_dir = max(max_dir, d.abs().max().item())
 
 
+        grad_norm = grad_sq ** 0.5
+        dir_norm = dir_sq ** 0.5
+        param_norm = param_sq ** 0.5
 
-        inner = dot_gd - wd * dot_gp
+
+        # cos_gd = dot_gd / (grad_norm * dir_norm + 1e-12)
+
+
+        # inner = dot_gd - wd * dot_gp
 
         phi0, derphi0 = loss, inner
 
 
-        # print("\n========== Line Search Debug ==========")
-        # print(f"loss (phi0): {phi0}")
-        # print(f"derphi0: {derphi0}")
+ 
+        print("\n========== Line Search Debug ==========")
+        print(f"loss (phi0): {phi0}")
+        print(f"derphi0: {derphi0}")
 
-        # print("\n--- Norms ---")
-        # print(f"grad_norm: {grad_norm:.6f}")
-        # print(f"dir_norm:  {dir_norm:.6f}")
-        # print(f"param_norm:{param_norm:.6f}")
+        print("\n--- Norms ---")
+        print(f"grad_norm: {grad_norm:.6f}")
+        print(f"dir_norm:  {dir_norm:.6f}")
+        print(f"param_norm:{param_norm:.6f}")
 
         # print("\n--- Dot Products ---")
         # print(f"g·d: {dot_gd:.6f}")
@@ -472,11 +648,11 @@ class LineSearchScheduler():
 
         # derphi0 = inner.detach()
 
-        # self.test_update_restore_max_diff(alpha=alpha)
-        # self.check_optimizer_step_vs_rule(
-        #     optimizer=self.optimizer,
-        #     rule_fn=self.rule,
-        # )
+        self.test_update_restore_max_diff(alpha=alpha)
+        self.check_optimizer_step_vs_rule(
+            optimizer=self.optimizer,
+            rule_fn=self.rule,
+        )
         
         if derphi0 > 0: 
             # self.clear_momentum()
@@ -484,12 +660,14 @@ class LineSearchScheduler():
             self.rule = self.get_potential_update_direction(fallback_to_neg_grad=True)
             inner = 0.0
             with torch.no_grad():
-                for group in self.optimizer.param_groups:
-                        for p in group["params"]:
-                            if p.grad is None:
-                                continue
-                            inner += torch.sum(p.grad * self.rule(p))
-                            inner -= wd * torch.sum(p.grad * p)
+                for group_idx in self.controlled_group_indices:
+                    group = self.optimizer.param_groups[group_idx]
+                    wd = group.get("weight_decay", 0.0)
+                    for p in group["params"]:
+                        if p.grad is None:
+                            continue
+                        inner += torch.sum(p.grad * self.rule(p))
+                        inner -= wd * torch.sum(p.grad * p)
 
             phi0, derphi0 = phi0, inner.detach()
             print(f"ASCENT!!!, new derphi0 {derphi0}")
@@ -513,15 +691,17 @@ class LineSearchScheduler():
         #         s += single_phi(a)          
         #     return s / n_samples
         # ## This can be optimized 
-    
-        alpha0 = self.line_search_alpha
+
         # print(f"start searching with alpha = {alpha0}, the prev_alpha is {self.prev_alpha}")
 
-        if step <= warmup_length:
-            alpha0 = 0.5
+        if step < warmup_length:
+            alpha0 = 1
             num_search = self.num_search
         else:
+            search_lr = (start_lr * self.prev_magnitude) / dir_norm
+            alpha0 = search_lr
             num_search = 1
+    
         
 
         alpha, fc, _ = line_search_armijo(
@@ -537,8 +717,8 @@ class LineSearchScheduler():
                     factor=factor,
                     log_dir=log_dir
                 )
-        if step <= warmup_length and alpha < self.prev_alpha:
-            alpha = self.prev_alpha
+        # if step < warmup_length and alpha < self.prev_alpha:
+        #     alpha = self.prev_alpha
         
         # if alpha is None or not np.isfinite(alpha) or alpha <= 0:
         #     current_lr = self.optimizer.param_groups[0]["lr"]
@@ -550,46 +730,13 @@ class LineSearchScheduler():
         #         param_group['lr'] = alpha
 
         self.line_search_alpha = alpha
-        print(alpha)
-        # for param_group in self.optimizer.param_groups: 
-        #         param_group['lr'] = alpha
-
-        # print("LINESEARCH LR:", alpha)
-        # # Record observation to CSV (only rank 1 when using DDP; single-process writes too)
-        # try:
-        #     def _to_float(x):
-        #         if torch.is_tensor(x):
-        #             return float(x.detach().cpu().item())
-        #         return float(x)
-
-        #     loss_val = _to_float(phi0)
-        #     lr_val = _to_float(alpha) if alpha is not None else float(self.optimizer.param_groups[0]["lr"])
-        #     grad_norm_val = float(grad_norm)
-        #     dir_norm_val = float(dir_norm)
-        #     inner_val = _to_float(derphi0 if 'derphi0' in locals() else inner)
-        #     mag_val = lr_val * dir_norm_val
-        #     ls_loss_decre_val = inner_val * lr_val
-
-        #     use_ddp = dist.is_available() and dist.is_initialized()
-        #     rank = dist.get_rank() if use_ddp else 0
-        #     # only allow writes from rank 1 in DDP, or from single-process (rank 0)
-        #     if (not use_ddp) or (rank == 1):
-        #         os.makedirs(self.log_dir, exist_ok=True)
-        #         with open(self.log_path, 'a', newline='') as f:
-        #             writer = csv.writer(f)
-        #             writer.writerow([int(step), loss_val, lr_val, grad_norm_val, dir_norm_val, inner_val, mag_val, ls_loss_decre_val])
-        # except Exception:
-        #     # best-effort logging; don't interrupt training on logging failure
-        #     pass
-        # if is_plateau:
-        #    for param_group in self.optimizer.param_groups: 
-        #             param_group['lr'] = alpha
-        # if step <= warmup_length:
-        #     for param_group in self.optimizer.param_groups: 
-        #         param_group['lr'] = alpha
-            
-        self.prev_alpha = self.optimizer.param_groups[0]["lr"]
-
+        self.prev_alpha = alpha
+        self.line_search_magnitude = alpha * dir_norm
+        print("LINESEARCH LR:", alpha, "magnitude:", self.line_search_magnitude)
+        if step < warmup_length:
+            self.prev_magnitude = self.line_search_magnitude 
+        else:
+            self.prev_magnitude = self.magnitude
 
 
 
