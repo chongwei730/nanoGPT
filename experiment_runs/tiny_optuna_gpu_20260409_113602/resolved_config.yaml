@@ -1,0 +1,50 @@
+experiment:
+  name: tiny_optuna_gpu
+  train_script: train.py
+  output_root: /users/9/chen8596/nanoGPT/experiment_runs
+  target_family: TinyGPT
+  target_dataset: TinyOpenWebText
+  target_model_size: tiny
+hyperparameters:
+  learning_rate:
+    type: log_uniform
+    range:
+    - 0.0001
+    - 0.0003
+task:
+  train_metric: train_loss
+  test_metric: val_loss
+  metric_mode: min
+  train_target: 0.0
+  test_target: 0.0
+  max_running_time_per_trial_hours: 1.0
+fixed_args:
+  dataset: ../../../tmp/tmpo6peppxl/tiny_openwebtext
+  compile: false
+  dtype: float32
+  gradient_accumulation_steps: 1
+  batch_size: 2
+  block_size: 8
+  n_layer: 1
+  n_head: 1
+  n_embd: 16
+  dropout: 0.0
+  bias: false
+  weight_decay: 0.0
+  eval_interval: 1
+  log_interval: 1
+  eval_iters: 1
+  max_iters: 1
+  warmup_iters: 0
+  lr_decay_iters: 1
+  min_lr: 0.0001
+  always_save_checkpoint: false
+checkpoint:
+  save_last: true
+launch:
+  mode: torchrun
+  nproc_per_node: 1
+optuna:
+  max_study_time_hours: 1.0
+  pruning:
+    enabled: false

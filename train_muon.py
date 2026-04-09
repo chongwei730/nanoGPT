@@ -20,6 +20,7 @@ import os
 import time
 import math
 import pickle
+import json
 from contextlib import nullcontext
 
 import numpy as np
@@ -79,6 +80,18 @@ backend = 'nccl' # 'nccl', 'gloo', etc.
 device = 'cuda' # examples: 'cpu', 'cuda', 'cuda:0', 'cuda:1' etc., or try 'mps' on macbooks
 dtype = 'bfloat16' if torch.cuda.is_available() and torch.cuda.is_bf16_supported() else 'float16' # 'float32', 'bfloat16', or 'float16', the latter will auto implement a GradScaler
 compile = True # use PyTorch 2.0 to compile the model to be faster
+# experiment controls
+experiment_name = ''
+trial_id = ''
+experiment_metric_mode = 'min'
+experiment_train_target_value = -1.0
+experiment_train_target_enabled = False
+experiment_test_target_value = -1.0
+experiment_test_target_enabled = False
+max_running_time_hours = 0.0
+save_last_checkpoint = True
+experiment_summary_path = ''
+prune_signal_path = ''
 # -----------------------------------------------------------------------------
 config_keys = [k for k,v in globals().items() if not k.startswith('_') and isinstance(v, (int, float, bool, str))]
 exec(open('configurator.py').read()) # overrides from command line or config file
@@ -139,6 +152,7 @@ def get_batch(split):
 
 # init these up here, can override if init_from='resume' (i.e. from a checkpoint)
 iter_num = 0
+best_train_loss = 1e9
 best_val_loss = 1e9
 
 # attempt to derive vocab_size from the dataset
@@ -287,12 +301,79 @@ if wandb_log and master_process:
     import wandb
     wandb.init(project=wandb_project, name=wandb_run_name, config=config)
 
+def save_checkpoint(path):
+    checkpoint = {
+        'model': raw_model.state_dict(),
+        'optimizer': optimizer.state_dict(),
+        'model_args': model_args,
+        'iter_num': iter_num,
+        'best_val_loss': best_val_loss,
+        'config': config,
+    }
+    print(f"saving checkpoint to {path}")
+    torch.save(checkpoint, path)
+
+def metric_reaches_target(metric_value, target_value, target_enabled):
+    if not target_enabled:
+        return False
+    if experiment_metric_mode == 'min':
+        return metric_value <= target_value
+    if experiment_metric_mode == 'max':
+        return metric_value >= target_value
+    raise ValueError(f"Unsupported experiment_metric_mode: {experiment_metric_mode}")
+
+def write_experiment_summary(
+    termination_reason,
+    elapsed_hours,
+    train_target_reached,
+    test_target_reached,
+    trial_train_reached_time_hours,
+    trial_test_reached_time_hours,
+):
+    if not experiment_summary_path or not master_process:
+        return
+    summary = {
+        'experiment_name': experiment_name,
+        'trial_id': trial_id,
+        'train_script': 'train_muon.py',
+        'out_dir': out_dir,
+        'best_checkpoint_path': os.path.join(out_dir, 'ckpt.pt') if os.path.exists(os.path.join(out_dir, 'ckpt.pt')) else '',
+        'last_checkpoint_path': os.path.join(out_dir, 'ckpt_last.pt') if os.path.exists(os.path.join(out_dir, 'ckpt_last.pt')) else '',
+        'best_train_loss': float(best_train_loss),
+        'best_val_loss': float(best_val_loss),
+        'iter_num': int(iter_num),
+        'learning_rate': float(learning_rate),
+        'train_target': float(experiment_train_target_value),
+        'test_target': float(experiment_test_target_value),
+        'train_target_enabled': bool(experiment_train_target_enabled),
+        'test_target_enabled': bool(experiment_test_target_enabled),
+        'train_target_reached': bool(train_target_reached),
+        'test_target_reached': bool(test_target_reached),
+        'both_targets_reached': bool(train_target_reached and test_target_reached),
+        'trial_train_reached_time_hours': trial_train_reached_time_hours,
+        'trial_test_reached_time_hours': trial_test_reached_time_hours,
+        'metric_mode': experiment_metric_mode,
+        'wall_clock_hours': float(elapsed_hours),
+        'termination_reason': termination_reason,
+    }
+    with open(experiment_summary_path, 'w', encoding='utf-8') as f:
+        json.dump(summary, f, indent=2, sort_keys=True)
+
+def prune_requested():
+    return bool(prune_signal_path) and os.path.exists(prune_signal_path)
+
 # training loop
 X, Y = get_batch('train') # fetch the very first batch
+train_start_time = time.time()
 t0 = time.time()
 local_iter_num = 0 # number of iterations in the lifetime of this process
 raw_model = model.module if ddp else model # unwrap DDP container if needed
 running_mfu = -1.0
+termination_reason = 'max_iters_reached'
+train_target_reached = False
+test_target_reached = False
+trial_train_reached_time_hours = None
+trial_test_reached_time_hours = None
 while True:
 
     # determine and set the learning rate multiplier for this iteration
@@ -304,6 +385,7 @@ while True:
     if iter_num % eval_interval == 0 and master_process:
         losses = estimate_loss()
         print(f"step {iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
+        best_train_loss = min(best_train_loss, losses['train'].item())
         if wandb_log:
             wandb.log({
                 "iter": iter_num,
@@ -319,17 +401,24 @@ while True:
         if losses['val'] < best_val_loss or always_save_checkpoint:
             best_val_loss = losses['val']
             if iter_num > 0:
-                checkpoint = {
-                    'model': raw_model.state_dict(),
-                    'optimizer': optimizer.state_dict(),
-                    'model_args': model_args,
-                    'iter_num': iter_num,
-                    'best_val_loss': best_val_loss,
-                    'config': config,
-                }
-                print(f"saving checkpoint to {out_dir}")
-                torch.save(checkpoint, os.path.join(out_dir, 'ckpt.pt'))
+                save_checkpoint(os.path.join(out_dir, 'ckpt.pt'))
+        elapsed_hours = (time.time() - train_start_time) / 3600.0
+        if metric_reaches_target(losses['train'].item(), experiment_train_target_value, experiment_train_target_enabled):
+            if not train_target_reached:
+                train_target_reached = True
+                trial_train_reached_time_hours = elapsed_hours
+        if metric_reaches_target(losses['val'].item(), experiment_test_target_value, experiment_test_target_enabled):
+            if not test_target_reached:
+                test_target_reached = True
+                trial_test_reached_time_hours = elapsed_hours
+        if train_target_reached and test_target_reached:
+            termination_reason = 'target_reached'
+            break
+        if prune_requested():
+            termination_reason = 'pruned'
+            break
     if iter_num == 0 and eval_only:
+        termination_reason = 'eval_only'
         break
 
     # forward backward update, with optional gradient accumulation to simulate larger batch size
@@ -377,7 +466,24 @@ while True:
 
     # termination conditions
     if iter_num > max_iters:
+        termination_reason = 'max_iters_reached'
         break
+    if max_running_time_hours > 0:
+        elapsed_hours = (time.time() - train_start_time) / 3600.0
+        if elapsed_hours >= max_running_time_hours:
+            termination_reason = 'time_limit_reached'
+            break
+
+if master_process and save_last_checkpoint and iter_num > 0:
+    save_checkpoint(os.path.join(out_dir, 'ckpt_last.pt'))
+write_experiment_summary(
+    termination_reason=termination_reason,
+    elapsed_hours=(time.time() - train_start_time) / 3600.0,
+    train_target_reached=train_target_reached,
+    test_target_reached=test_target_reached,
+    trial_train_reached_time_hours=trial_train_reached_time_hours,
+    trial_test_reached_time_hours=trial_test_reached_time_hours,
+)
 
 if ddp:
     destroy_process_group()

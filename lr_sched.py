@@ -361,17 +361,16 @@ class LineSearchScheduler():
 
         if k != 0 and step != warmup_length: 
             if self.prev_alpha >= self.line_search_alpha: 
-                # progress in [0, 1]
                 t = (k + 1) / interval
                 # cosine interpolation (smooth start & end)
                 cosine_frac = 0.5 * (1 - math.cos(math.pi * t))
-                # lr = self.line_search_alpha
                 lr = self.prev_alpha + cosine_frac * (
                     self.line_search_alpha - self.prev_alpha
                 )
                 for param_group in self.optimizer.param_groups: 
                     param_group['lr'] = lr
                 return
+            # warmup
             warmup_frac = (k + 1) / interval
             lr = self.prev_alpha + warmup_frac * (self.line_search_alpha - self.prev_alpha)
             for param_group in self.optimizer.param_groups: 
@@ -379,18 +378,12 @@ class LineSearchScheduler():
             return
 
         self.optimizer.zero_grad(set_to_none=True)
-
         loss = closure(require_grad=True)
-
         self.rule = self.get_potential_update_direction()
 
         inner = 0.0
-
-
         dot_gd = 0.0
         dot_gp = 0.0
-
-
 
         with torch.no_grad():
             for group in self.optimizer.param_groups:
@@ -412,10 +405,7 @@ class LineSearchScheduler():
                     dot_gp += gp
 
 
-
-
         inner = dot_gd - wd * dot_gp
-
         phi0, derphi0 = loss, inner
 
 

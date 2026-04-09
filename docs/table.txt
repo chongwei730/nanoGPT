@@ -1,0 +1,30 @@
+# Experiment Targets Table
+
+This file defines reference targets for experiment families. Keep the schema
+stable so a coding agent can read and update it safely.
+
+## Column Definitions
+
+- `family`: model family or architecture family
+- `dataset`: dataset used for the run
+- `model_size`: parameter scale label
+- `tokens_b`: training tokens in billions
+- `train_target`: expected train-side target metric
+- `test_target`: expected test-side target metric
+- `runtime_hours`: expected runtime in hours
+- `notes`: optional remarks
+
+## Reference Table
+
+| family | dataset | model_size | tokens_b | train_target | test_target | runtime_hours | notes |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| GPT | OpenWebText | 124M | 2.5 | 3.11 | 3.12 | 3 | baseline target |
+| GPT | OpenWebText | 355M | 7.0 | 2.85 | 2.84 | 24 | baseline target |
+| GPT | OpenWebText | 770M | 15.0 | 2.66 | 2.67 | NA | runtime not specified |
+| LLaMA | OpenWebText | 60M | 1.4 | NA | 30.79 | 2 | train target not specified |
+| LLaMA | OpenWebText | 130M | 2.6 | NA | 29.77 | 3 | train target not specified |
+| LLaMA | OpenWebText | 350M | 7.8 | NA | 18.42 | 24 | train target not specified |
+| LLaMA | OpenWebText | 1B | 20.0 | NA | 16.35 | NA | runtime not specified |
+
+## Update Rules
+

@@ -1,0 +1,2 @@
+In this research, I need to test the effectiveness of a learning rate scheduler based on line search. I want to show that by using line search scheduler, we can adaptively tune the learning rate for different model size, optimizers, and model architectures. 
+For the experiment, I want to compare the amount of time the used from hyperparameter searching to training reached some preset target metric.
