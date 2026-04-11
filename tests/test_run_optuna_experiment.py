@@ -72,8 +72,6 @@ class RunOptunaExperimentIntegrationTest(unittest.TestCase):
                     "train_metric": "train_loss",
                     "test_metric": "val_loss",
                     "metric_mode": "min",
-                    "train_target": 0.0,
-                    "test_target": 0.0,
                     "max_running_time_per_trial_hours": 1.0,
                 },
                 "fixed_args": {
@@ -159,6 +157,12 @@ class RunOptunaExperimentIntegrationTest(unittest.TestCase):
             self.assertEqual(2, study_summary["num_completed_trials"])
             self.assertEqual("study_timeout", study_summary["stop_reason"])
             self.assertIsNotNone(study_summary["best_params"])
+            self.assertEqual("train_loss", study_summary["selection_metric"])
+            self.assertIn("best_train_value", study_summary)
+            self.assertIn("best_test_value", study_summary)
+            self.assertNotIn("train_target", study_summary)
+            self.assertNotIn("test_target", study_summary)
+            self.assertTrue(Path(study_summary["all_records_path"]).exists())
 
             trials = [
                 json.loads(line)
@@ -171,13 +175,34 @@ class RunOptunaExperimentIntegrationTest(unittest.TestCase):
                 self.assertEqual(0, trial["returncode"])
                 self.assertTrue(Path(trial["summary_path"]).exists())
                 self.assertTrue(Path(trial["log_path"]).exists())
+                self.assertTrue(Path(trial["records_path"]).exists())
+                self.assertEqual("train_loss", trial["selection_metric"])
 
                 summary = json.loads(Path(trial["summary_path"]).read_text(encoding="utf-8"))
                 self.assertEqual("max_iters_reached", summary["termination_reason"])
+                self.assertIn("best_train_loss", summary)
+                self.assertIn("best_val_loss", summary)
 
                 log_text = Path(trial["log_path"]).read_text(encoding="utf-8")
                 self.assertIn("step 0: train loss", log_text)
                 self.assertIn("step 1: train loss", log_text)
+
+                records = [
+                    json.loads(line)
+                    for line in Path(trial["records_path"]).read_text(encoding="utf-8").splitlines()
+                    if line.strip()
+                ]
+                self.assertTrue(records)
+                self.assertEqual("stage1", records[0]["stage"])
+                self.assertEqual(trial["trial_id"], records[0]["trial_id"])
+
+            all_records = [
+                json.loads(line)
+                for line in (experiment_root / "all_records.jsonl").read_text(encoding="utf-8").splitlines()
+                if line.strip()
+            ]
+            self.assertTrue(all_records)
+            self.assertEqual({"stage1"}, {record["stage"] for record in all_records})
 
 
 if __name__ == "__main__":

@@ -19,3 +19,5 @@ venv/
 .codex
 *.yml
 experiment_run/
+wandb/
+data/

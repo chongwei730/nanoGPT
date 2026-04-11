@@ -63,24 +63,18 @@ task:
 
 ## Trial Execution
 
-Default trial loop:
+Stage one:
+Use Optuna to search only the learning rate within the predefined learning rate range.
+Each Optuna trial is limited by `task.max_running_time_per_trial_hours`.
+All other hyperparameters must remain fixed.
+In stage one, always use 5% of the total training tokens as training length of one trial.
 
-```text
-num_trials = 0
-max_trials = 5
+Stage two:
+Use the best learning rate found by Optuna and run the final training trial.
+The reported total experiment time only includes this stage-two final training run,
+not the Optuna search time from stage one.
 
-while target not reached and num_trials < max_trials:
-    sample learning_rate with Optuna
-    run one training trial
-    stop the trial when the target is reached or time limit is hit
-    num_trials += 1
-```
-
-Operationally:
-
-- Optuna samples one learning rate per trial.
-- The selected training script runs with all non-LR hyperparameters fixed.
-- Continue using Optuna until the metric target is reached or the trial budget is exhausted.
+Run Stage1-2 multiple times for different level of `task.max_running_time_per_trial_hours`. 
 
 ## Logging
 
@@ -93,14 +87,6 @@ Track the following at each logging or evaluation interval:
 - `test_metric`
 - `learning_rate`
 - `wall_clock_time`
-
-For the current training scripts, the most important logged values are:
-
-- step
-- train loss
-- val loss
-- learning rate
-- wall-clock time
 
 ## Checkpointing
 
@@ -123,22 +109,6 @@ Current implementation detail:
 - Best checkpoint is typically saved as `ckpt.pt`
 - Last checkpoint may also be saved when enabled
 - Best-model selection follows the configured metric mode
-
-## Trial Termination
-
-A trial ends when one of the following happens:
-
-- `max_running_time_per_trial` is reached
-- both of the target conditions are reached (both training and validation target metric)
-- the trial is pruned by the Optuna pruner
-
-Timeout is treated as a valid termination.
-
-After each trial:
-
-```text
-num_trials += 1
-```
 
 ## Time Definition
 

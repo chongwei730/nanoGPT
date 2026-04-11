@@ -50,6 +50,7 @@ dataset = 'openwebtext'
 gradient_accumulation_steps = 5 * 8 # used to simulate larger batch sizes
 batch_size = 12 # if gradient_accumulation_steps > 1, this is the micro-batch size
 block_size = 1024
+data_backend = 'ram' # 'memmap' keeps files mmaped, 'ram' loads them into process memory
 # model
 n_layer = 12
 n_head = 12
@@ -80,6 +81,7 @@ backend = 'nccl' # 'nccl', 'gloo', etc.
 device = 'cuda' # examples: 'cpu', 'cuda', 'cuda:0', 'cuda:1' etc., or try 'mps' on macbooks
 dtype = 'bfloat16' if torch.cuda.is_available() and torch.cuda.is_bf16_supported() else 'float16' # 'float32', 'bfloat16', or 'float16', the latter will auto implement a GradScaler
 compile = True # use PyTorch 2.0 to compile the model to be faster
+use_flash_attention = True # use PyTorch scaled_dot_product_attention when available
 # experiment controls
 experiment_name = ''
 trial_id = ''
@@ -133,18 +135,28 @@ ctx = nullcontext() if device_type == 'cpu' else torch.amp.autocast(device_type=
 
 # poor man's data loader
 data_dir = os.path.join('/scratch.global/chen8596/nanogpt_data', dataset)
+def load_token_data(filename):
+    path = os.path.join(data_dir, filename)
+    if data_backend == 'memmap':
+        return np.memmap(path, dtype=np.uint16, mode='r')
+    if data_backend == 'ram':
+        if master_process:
+            print(f"loading {path} into RAM")
+        return np.fromfile(path, dtype=np.uint16)
+    raise ValueError(f"Unsupported data_backend: {data_backend}")
+
+train_data = load_token_data('train.bin')
+val_data = load_token_data('val.bin')
+if master_process:
+    print(f"using data backend: {data_backend}")
+
 def get_batch(split):
-    # We recreate np.memmap every batch to avoid a memory leak, as per
-    # https://stackoverflow.com/questions/45132940/numpy-memmap-memory-usage-want-to-iterate-once/61472122#61472122
-    if split == 'train':
-        data = np.memmap(os.path.join(data_dir, 'train.bin'), dtype=np.uint16, mode='r')
-    else:
-        data = np.memmap(os.path.join(data_dir, 'val.bin'), dtype=np.uint16, mode='r')
-    ix = torch.randint(len(data) - block_size, (batch_size,))
-    x = torch.stack([torch.from_numpy((data[i:i+block_size]).astype(np.int64)) for i in ix])
-    y = torch.stack([torch.from_numpy((data[i+1:i+1+block_size]).astype(np.int64)) for i in ix])
+    data = train_data if split == 'train' else val_data
+    ix = torch.randint(0, len(data) - block_size, (batch_size,)).numpy()
+    offsets = np.arange(block_size)
+    x = torch.from_numpy(data[ix[:, None] + offsets]).long()
+    y = torch.from_numpy(data[ix[:, None] + offsets + 1]).long()
     if device_type == 'cuda':
-        # pin arrays x,y, which allows us to move them to GPU asynchronously (non_blocking=True)
         x, y = x.pin_memory().to(device, non_blocking=True), y.pin_memory().to(device, non_blocking=True)
     else:
         x, y = x.to(device), y.to(device)
@@ -166,7 +178,8 @@ if os.path.exists(meta_path):
 
 # model init
 model_args = dict(n_layer=n_layer, n_head=n_head, n_embd=n_embd, block_size=block_size,
-                  bias=bias, vocab_size=None, dropout=dropout) # start with model_args from command line
+                  bias=bias, vocab_size=None, dropout=dropout,
+                  use_flash_attention=use_flash_attention) # start with model_args from command line
 if init_from == 'scratch':
     # init a new model from scratch
     print("Initializing a new model from scratch")
@@ -212,6 +225,8 @@ if block_size < model.config.block_size:
     model.crop_block_size(block_size)
     model_args['block_size'] = block_size # so that the checkpoint will have the right value
 model.to(device)
+if master_process:
+    print(f"using flash attention: {model.transformer.h[0].attn.flash}")
 
 # initialize a GradScaler. If enabled=False scaler is a no-op
 scaler = torch.amp.GradScaler('cuda', enabled=(dtype == 'float16'))
@@ -313,22 +328,9 @@ def save_checkpoint(path):
     print(f"saving checkpoint to {path}")
     torch.save(checkpoint, path)
 
-def metric_reaches_target(metric_value, target_value, target_enabled):
-    if not target_enabled:
-        return False
-    if experiment_metric_mode == 'min':
-        return metric_value <= target_value
-    if experiment_metric_mode == 'max':
-        return metric_value >= target_value
-    raise ValueError(f"Unsupported experiment_metric_mode: {experiment_metric_mode}")
-
 def write_experiment_summary(
     termination_reason,
     elapsed_hours,
-    train_target_reached,
-    test_target_reached,
-    trial_train_reached_time_hours,
-    trial_test_reached_time_hours,
 ):
     if not experiment_summary_path or not master_process:
         return
@@ -343,17 +345,9 @@ def write_experiment_summary(
         'best_val_loss': float(best_val_loss),
         'iter_num': int(iter_num),
         'learning_rate': float(learning_rate),
-        'train_target': float(experiment_train_target_value),
-        'test_target': float(experiment_test_target_value),
-        'train_target_enabled': bool(experiment_train_target_enabled),
-        'test_target_enabled': bool(experiment_test_target_enabled),
-        'train_target_reached': bool(train_target_reached),
-        'test_target_reached': bool(test_target_reached),
-        'both_targets_reached': bool(train_target_reached and test_target_reached),
-        'trial_train_reached_time_hours': trial_train_reached_time_hours,
-        'trial_test_reached_time_hours': trial_test_reached_time_hours,
         'metric_mode': experiment_metric_mode,
         'wall_clock_hours': float(elapsed_hours),
+        'elapsed_wall_clock_hours': float((time.time() - train_start_time) / 3600.0),
         'termination_reason': termination_reason,
     }
     with open(experiment_summary_path, 'w', encoding='utf-8') as f:
@@ -370,10 +364,6 @@ local_iter_num = 0 # number of iterations in the lifetime of this process
 raw_model = model.module if ddp else model # unwrap DDP container if needed
 running_mfu = -1.0
 termination_reason = 'max_iters_reached'
-train_target_reached = False
-test_target_reached = False
-trial_train_reached_time_hours = None
-trial_test_reached_time_hours = None
 while True:
 
     # determine and set the learning rate multiplier for this iteration
@@ -402,18 +392,6 @@ while True:
             best_val_loss = losses['val']
             if iter_num > 0:
                 save_checkpoint(os.path.join(out_dir, 'ckpt.pt'))
-        elapsed_hours = (time.time() - train_start_time) / 3600.0
-        if metric_reaches_target(losses['train'].item(), experiment_train_target_value, experiment_train_target_enabled):
-            if not train_target_reached:
-                train_target_reached = True
-                trial_train_reached_time_hours = elapsed_hours
-        if metric_reaches_target(losses['val'].item(), experiment_test_target_value, experiment_test_target_enabled):
-            if not test_target_reached:
-                test_target_reached = True
-                trial_test_reached_time_hours = elapsed_hours
-        if train_target_reached and test_target_reached:
-            termination_reason = 'target_reached'
-            break
         if prune_requested():
             termination_reason = 'pruned'
             break
@@ -479,10 +457,6 @@ if master_process and save_last_checkpoint and iter_num > 0:
 write_experiment_summary(
     termination_reason=termination_reason,
     elapsed_hours=(time.time() - train_start_time) / 3600.0,
-    train_target_reached=train_target_reached,
-    test_target_reached=test_target_reached,
-    trial_train_reached_time_hours=trial_train_reached_time_hours,
-    trial_test_reached_time_hours=trial_test_reached_time_hours,
 )
 
 if ddp:

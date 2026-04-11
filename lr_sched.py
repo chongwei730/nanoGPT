@@ -930,9 +930,6 @@ def search_bisection_ddp_visual(phi, phi0, derphi0, c1,
         # -------- Armijo line --------
         armijo_line = phi0_g + c1 * t_vals * derphi0_g
 
-        # ========================================================
-        # ⭐ 截断范围：只显示 1e-3 以内
-        # ========================================================
         t_max = 3e-3
 
         mask = t_vals <= t_max
@@ -1267,21 +1264,12 @@ def search_bisection(phi, phi0, derphi0, c1,
             if new_alpha <= amin:
                 break
             new_phi = phi(new_alpha)
-            # loss_list.append(new_phi)
+
 
         
             if new_phi <= phi0 + c1 * new_alpha * derphi0:
                 break
 
-            # if len(loss_list) >= 3:
-            #             rng = max(loss_list) - min(loss_list)
-            #             r_range = rng / max(abs(phi_a), 1e-12)
-            #             # flat_region = r_range <= flat_eps
-            # else:
-                        # flat_region = False
-            # if flat_region:
-            #             print(f" Flat Region: {flat_region}. loss list: {loss_list}, maxdiff : {max(loss_list) - min(loss_list)}")
-            #             return old_alpha, phi_old 
 
             alpha = new_alpha
             phi_a = new_phi
@@ -1392,96 +1380,3 @@ def search_backtracking_visual(
 
 
 
-# def search_backtracking_visual_ddp(
-#     phi, phi0, derphi0,
-#     c1, alpha, shrink,
-#     plot_path="backtracking_ls.png",
-#     t_min=0.0, t_max=1.0, num_points=30,
-#     max_bt=4,
-# ):
-#     import numpy as np
-#     import torch
-#     import torch.distributed as dist
-#     import matplotlib.pyplot as plt
-
-#     # ---------- helpers (inline, no extra functions) ----------
-#     ddp_on = dist.is_available() and dist.is_initialized()
-#     rank = dist.get_rank() if ddp_on else 0
-#     world_size = dist.get_world_size() if ddp_on else 1
-#     is_rank0 = (rank == 0)
-
-#     def reduce_mean_scalar(x):
-#         if not ddp_on:
-#             return float(x) if not torch.is_tensor(x) else float(x.detach().item())
-#         if not torch.is_tensor(x):
-#             x = torch.tensor(float(x), device="cuda" if torch.cuda.is_available() else "cpu")
-#         else:
-#             x = x.detach()
-#             if x.dim() != 0:
-#                 x = x.reshape(())
-#         dist.all_reduce(x, op=dist.ReduceOp.SUM)
-#         x /= world_size
-#         return float(x.item())
-
-#     # ---------- make phi0 / derphi0 globally consistent ----------
-#     phi0_g = reduce_mean_scalar(phi0)
-#     derphi0_g = reduce_mean_scalar(derphi0)
-
-#     explored = []  # only used on rank0
-
-#     # ---------- Backtracking loop (ALL ranks follow same control flow) ----------
-#     phi_a_local = phi(alpha)
-#     phi_a = reduce_mean_scalar(phi_a_local)
-
-#     if is_rank0:
-#         explored.append((alpha, phi_a))
-
-#     count = 0
-#     while phi_a > phi0_g + c1 * alpha * derphi0_g:
-#         count += 1
-#         if count > max_bt:
-#             break
-
-#         alpha *= shrink
-
-#         phi_a_local = phi(alpha)
-#         phi_a = reduce_mean_scalar(phi_a_local)
-
-#         if is_rank0:
-#             explored.append((alpha, phi_a))
-
-#     chosen_alpha, chosen_phi = alpha, phi_a
-
-#     # ---------- Visualization (ONLY rank0) ----------
-#     if is_rank0:
-#         t_vals = np.linspace(t_min, t_max, num_points)
-#         phi_vals = []
-#         for t in t_vals:
-#             v_local = phi(float(t))
-#             v = reduce_mean_scalar(v_local)
-#             phi_vals.append(v)
-#         phi_vals = np.array(phi_vals)
-
-#         armijo_line = phi0_g + c1 * t_vals * derphi0_g
-
-#         plt.figure(figsize=(8, 6))
-#         plt.plot(t_vals, phi_vals, label="phi(t)", linewidth=2)
-#         plt.plot(t_vals, armijo_line, "--", label="Armijo line", linewidth=2)
-
-#         for i, (a, v) in enumerate(explored):
-#             plt.scatter(a, v, color="red", s=60)
-#             plt.annotate("init" if i == 0 else f"bt {i}",
-#                          (a, v), textcoords="offset points", xytext=(5, 5))
-
-#         plt.scatter(chosen_alpha, chosen_phi,
-#                     color="blue", s=120, marker="x", label="chosen alpha")
-
-#         plt.xlabel("t (step size)")
-#         plt.ylabel("phi(t)")
-#         plt.title("Backtracking Line Search Visualization (DDP)")
-#         plt.grid(True)
-#         plt.legend()
-#         plt.savefig(plot_path, dpi=200)
-#         plt.close()
-
-#     return chosen_alpha, chosen_phi# Copyright (c) Meta Platforms, Inc. and affiliates.

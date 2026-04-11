@@ -1,1 +1,0 @@
-{"log_path": "experiment_runs/gpt124m_lr_search_20260409_034510/trial_0000/trial.log", "params": {"learning_rate": 0.0001265511694875513}, "returncode": 1, "status": "missing_summary", "trial_id": "trial_0000"}
