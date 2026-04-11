@@ -69,6 +69,14 @@ decay_lr = True # whether to decay the learning rate
 warmup_iters = 100  # how many steps to warm up for
 lr_decay_iters = 10000 # should be ~= max_iters per Chinchilla
 min_lr = 6e-5 # minimum learning rate, should be ~= learning_rate/10 per Chinchilla
+# line search settings
+linesearch_interval = 1000
+linesearch_accum_steps = 32
+linesearch_num_search = 30
+linesearch_start_lr = 0.0
+linesearch_c1 = 0.1
+linesearch_search_mode = 'bisection'
+linesearch_factor = 0.5
 # DDP settings
 backend = 'nccl' # 'nccl', 'gloo', etc.
 # system
@@ -247,14 +255,11 @@ def estimate_loss():
 # define the linesearch lr_sched
 scheduler = LineSearchScheduler(optimizer=optimizer, 
                                 model_paras=model.parameters(), 
-                                num_search=30, start_lr=0, 
+                                num_search=linesearch_num_search, start_lr=linesearch_start_lr, 
                                 optimizer_type="AdamW", 
                                 injection=False, 
-                                search_mode="bisection", 
+                                search_mode=linesearch_search_mode, 
                                 warmup_length=warmup_iters)
-linesearch_interval = 1000
-accum_steps = 32 ## can be adaptive
-c1 = 0.2
 
 
 # learning rate decay scheduler (cosine with warmup)
@@ -277,7 +282,7 @@ while True:
     if iter_num % linesearch_interval == 0 or (iter_num <= warmup_iters and iter_num % warmup_iters == 0):
         print("LINESEARCH!!!")
         fixed_batches = []
-        for i in range(accum_steps):
+        for i in range(linesearch_accum_steps):
             X_ls, Y_ls = get_batch_linesearch("train")
             fixed_batches.append((X_ls, Y_ls))
 
@@ -305,7 +310,7 @@ while True:
                     #     g_before = torch.cat(vecs_before) if len(vecs_before) > 0 else torch.tensor([], device=device)
 
                     #     # backward for this micro-batch (with accumulation scaling)
-                        (loss_ls / (accum_steps+1)).backward()
+                        (loss_ls / (linesearch_accum_steps + 1)).backward()
 
                         # Clip gradients produced by the closure to keep them consistent
                         # with the main training loop. This prevents excessively large
@@ -343,13 +348,21 @@ while True:
                     #             f"||increm||={norm_i.item():.3e}"
                     #         )
 
-                avg_loss = total_loss / (accum_steps + 1)
+                avg_loss = total_loss / (linesearch_accum_steps + 1)
                 return avg_loss.item()
             return line_search_closure
         line_search_closure = make_closure()
             
-    c1_use = c1 + (1 - c1) * (iter_num / max_iters)
-    scheduler.step(line_search_closure, c1=c1_use, step=iter_num, interval=linesearch_interval, condition="armijo", warmup_length=warmup_iters)
+    c1_use = linesearch_c1 + (1 - linesearch_c1) * (iter_num / max_iters)
+    scheduler.step(
+        line_search_closure,
+        c1=c1_use,
+        factor=linesearch_factor,
+        step=iter_num,
+        interval=linesearch_interval,
+        condition="armijo",
+        warmup_length=warmup_iters,
+    )
     lr = optimizer.param_groups[0]['lr']
 
 
