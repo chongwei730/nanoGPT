@@ -18,10 +18,15 @@ mkdir -p exp_log/slurm
 # module load cuda
 # source ~/miniconda3/etc/profile.d/conda.sh
 # conda activate nanogpt
-cd /users/9/chen8596/nanoGPT
+cd ..
+cd ..
 
 RUN_ROOT="experiment_runs/gpt124m_line_search_stage2"
-FINAL_DIR="$RUN_ROOT/final"
-mkdir -p "$FINAL_DIR"
 
-torchrun --standalone --nproc_per_node=4 train_linesearch.py 
+python run_linesearch_stage2.py \
+  --run-root "$RUN_ROOT" \
+  --nproc-per-node 4 \
+  --experiment-name "gpt124m_line_search" \
+  --trial-id "stage2_final" \
+  --learning-rate 1e-6 \
+  -- --learning_rate=1e-6
