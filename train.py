@@ -29,6 +29,7 @@ import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.distributed import init_process_group, destroy_process_group
 
+from checkpoint_utils import resolve_resume_checkpoint
 from model import GPTConfig, GPT
 
 # -----------------------------------------------------------------------------
@@ -48,8 +49,8 @@ wandb_run_name = 'gpt2' # 'run' + str(time.time())
 wandb_group = ''
 # data
 dataset = 'openwebtext'
-gradient_accumulation_steps = 4*2 # used to simulate larger batch sizes
-batch_size = 60 # if gradient_accumulation_steps > 1, this is the micro-batch size
+gradient_accumulation_steps = 4*4 # used to simulate larger batch sizes
+batch_size = 30 # if gradient_accumulation_steps > 1, this is the micro-batch size
 block_size = 1024
 data_backend = 'memmap' # 'memmap' keeps files mmaped, 'ram' loads them into process memory
 # model
@@ -59,6 +60,7 @@ n_embd = 768
 dropout = 0.0 # for pretraining 0 is good, for finetuning try 0.1+
 bias = False # do we use bias inside LayerNorm and Linear layers?
 # adamw optimizer
+optimizer_type = 'AdamW' # 'AdamW' or 'Adam'
 learning_rate = 6e-4 # max learning rate
 max_iters = 5000 # total number of training iterations
 weight_decay = 1e-1
@@ -193,7 +195,8 @@ if init_from == 'scratch':
 elif init_from == 'resume':
     print(f"Resuming training from {out_dir}")
     # resume training from a checkpoint.
-    ckpt_path = os.path.join(out_dir, 'ckpt.pt')
+    ckpt_path = resolve_resume_checkpoint(out_dir)
+    print(f"Loading checkpoint from {ckpt_path}")
     checkpoint = torch.load(ckpt_path, map_location=device)
     checkpoint_model_args = checkpoint['model_args']
     # force these config attributes to be equal otherwise we can't even resume training
@@ -212,6 +215,7 @@ elif init_from == 'resume':
             state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
     model.load_state_dict(state_dict)
     iter_num = checkpoint['iter_num']
+    best_train_loss = checkpoint.get('best_train_loss', best_train_loss)
     best_val_loss = checkpoint['best_val_loss']
 elif init_from.startswith('gpt2'):
     print(f"Initializing from OpenAI GPT-2 weights: {init_from}")
@@ -233,7 +237,16 @@ if master_process:
 scaler = torch.cuda.amp.GradScaler(enabled=(dtype == 'float16'))
 
 # optimizer
-optimizer = model.configure_optimizers(weight_decay, learning_rate, (beta1, beta2), device_type)
+optimizer = model.configure_optimizers(
+    weight_decay,
+    learning_rate,
+    (beta1, beta2),
+    device_type,
+    optimizer_type=optimizer_type,
+)
+schedulefree_active = optimizer_type == 'AdamWScheduleFree'
+if schedulefree_active:
+    optimizer.train()
 if init_from == 'resume':
     optimizer.load_state_dict(checkpoint['optimizer'])
 checkpoint = None # free up memory
@@ -253,6 +266,8 @@ if ddp:
 def estimate_loss():
     out = {}
     eval_model = model.module if ddp else model
+    if schedulefree_active:
+        optimizer.eval()
     eval_model.eval()
     for split in ['train', 'val']:
         losses = torch.zeros(eval_iters)
@@ -263,6 +278,8 @@ def estimate_loss():
             losses[k] = loss.item()
         out[split] = losses.mean()
     eval_model.train()
+    if schedulefree_active:
+        optimizer.train()
     return out
 
 # learning rate decay scheduler (cosine with warmup)
@@ -298,11 +315,14 @@ if wandb_log and master_process:
     wandb.init(**wandb_init_kwargs)
 
 def save_checkpoint(path):
+    if not master_process:
+        return
     checkpoint = {
         'model': raw_model.state_dict(),
         'optimizer': optimizer.state_dict(),
         'model_args': model_args,
         'iter_num': iter_num,
+        'best_train_loss': best_train_loss,
         'best_val_loss': best_val_loss,
         'config': config,
     }
@@ -320,8 +340,8 @@ def write_experiment_summary(
         'trial_id': trial_id,
         'train_script': 'train.py',
         'out_dir': out_dir,
-        'best_checkpoint_path': os.path.join(out_dir, 'ckpt.pt') if os.path.exists(os.path.join(out_dir, 'ckpt.pt')) else '',
-        'last_checkpoint_path': os.path.join(out_dir, 'ckpt_last.pt') if os.path.exists(os.path.join(out_dir, 'ckpt_last.pt')) else '',
+        'best_checkpoint_path': '',
+        'last_checkpoint_path': '',
         'best_train_loss': float(best_train_loss),
         'best_val_loss': float(best_val_loss),
         'iter_num': int(iter_num),

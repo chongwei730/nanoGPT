@@ -38,6 +38,12 @@ def parse_args():
         help="Override task.max_running_time_per_trial_hours for this stage-one run.",
     )
     parser.add_argument(
+        "--num-iterations-per-trial",
+        type=int,
+        default=None,
+        help="Override task.num_iterations_per_trial for this stage-one run.",
+    )
+    parser.add_argument(
         "--max-study-time-hours",
         type=float,
         default=None,
@@ -154,6 +160,8 @@ def find_target_row(config):
 
 def validate_target_row(config, target_row, validate_runtime=True):
     task = config["task"]
+    if "num_iterations_per_trial" in task:
+        return
     expected_runtime = parse_optional_float(target_row["runtime_hours"])
     if (
         validate_runtime
@@ -182,13 +190,23 @@ def build_pruner(config):
     if max_iters <= 0:
         raise ValueError("fixed_args.max_iters must be > 0 for HyperbandPruner.")
 
-    min_resource = int(0.01 * max_iters)
-    max_resource = int(0.5 * max_iters)
-    return optuna.pruners.HyperbandPruner(
+    min_resource = max(1, int(0.01 * max_iters))
+    return optuna.pruners.SuccessiveHalvingPruner(
         min_resource=min_resource,
-        max_resource=max_resource,
-        reduction_factor=3,
+        reduction_factor=4,
+        min_early_stopping_rate=0,
     )
+
+
+def choose_result_trial_from_optuna_trials(trials):
+    completed_trials = [
+        trial for trial in trials
+        if trial.state == optuna.trial.TrialState.COMPLETE
+    ]
+    if not completed_trials:
+        return None, completed_trials
+    result_trial = sorted(completed_trials, key=lambda trial: trial.number)[-1]
+    return result_trial, completed_trials
 
 
 def build_command(
@@ -199,6 +217,8 @@ def build_command(
     summary_path,
     prune_signal_path,
     max_running_time_hours=None,
+    num_iterations_override=None,
+    init_from="scratch",
 ):
     experiment = config["experiment"]
     task = config["task"]
@@ -206,6 +226,11 @@ def build_command(
     fixed_args = config.get("fixed_args", {})
     launch = config.get("launch", {})
     wandb_cfg = config.get("wandb", {})
+    num_iterations_per_trial = int(
+        task["num_iterations_per_trial"]
+        if num_iterations_override is None
+        else num_iterations_override
+    )
 
     launch_mode = launch.get("mode", "torchrun")
     if launch_mode == "torchrun":
@@ -226,6 +251,9 @@ def build_command(
         raise ValueError(f"Unsupported launch.mode: {launch_mode}")
 
     cmd.append(experiment["train_script"])
+    train_config = experiment.get("train_config", "")
+    if train_config:
+        cmd.append(train_config)
     for key, value in fixed_args.items():
         cmd.append(f"--{key}={value}")
     for key, value in sampled_params.items():
@@ -244,21 +272,22 @@ def build_command(
             ]
         )
 
-    if max_running_time_hours is None:
-        max_running_time_hours = task["max_running_time_per_trial_hours"]
-
     cmd.extend(
         [
+            f"--max_iters={num_iterations_per_trial}",
+            f"--lr_decay_iters={num_iterations_per_trial}",
             f"--out_dir={trial_dir}",
             f"--experiment_name={experiment['name']}",
             f"--trial_id={trial_id}",
             f"--experiment_metric_mode={task['metric_mode']}",
-            f"--max_running_time_hours={max_running_time_hours}",
-            f"--save_last_checkpoint={checkpoint.get('save_last', True)}",
+            "--max_running_time_hours=0.0",
+            f"--save_last_checkpoint={checkpoint.get('save_last', False)}",
             f"--experiment_summary_path={summary_path}",
             f"--prune_signal_path={prune_signal_path}",
         ]
     )
+    if init_from != "scratch":
+        cmd.append(f"--init_from={init_from}")
     return cmd
 
 
@@ -292,10 +321,9 @@ def write_json(path, payload):
         json.dump(payload, f, indent=2, sort_keys=True)
 
 
-def make_record(stage, level_hours, trial_id, learning_rate, step, train_loss, val_loss, wall_clock_hours):
+def make_record(stage, trial_id, learning_rate, step, train_loss, val_loss, wall_clock_hours):
     return {
         "stage": stage,
-        "level_hours": float(level_hours) if level_hours is not None else None,
         "trial_id": trial_id,
         "learning_rate": float(learning_rate),
         "step": int(step),
@@ -333,9 +361,9 @@ def stream_process(command, log_path, record_paths=None, record_context=None, tr
             reported_steps.add(step)
             wall_clock_hours = (time.time() - start_time) / 3600.0
             if record_paths is not None and record_context is not None:
+                record_stage = record_context.get("stage", record_context.get("phase", "unknown"))
                 record = make_record(
-                    stage=record_context["stage"],
-                    level_hours=record_context.get("level_hours"),
+                    stage=record_stage,
                     trial_id=record_context["trial_id"],
                     learning_rate=record_context["learning_rate"],
                     step=step,
@@ -355,6 +383,7 @@ def stream_process(command, log_path, record_paths=None, record_context=None, tr
 
 
 def main():
+    start_time = time.time()
     if os.environ.get("RANK") not in (None, "0") or os.environ.get("WORLD_SIZE") not in (None, "1"):
         raise ValueError(
             "run_optuna_experiment.py must be launched as a single controller process. "
@@ -379,7 +408,7 @@ def main():
     )
     require_keys(
         config["task"],
-        ["train_metric", "test_metric", "metric_mode", "max_running_time_per_trial_hours"],
+        ["train_metric", "test_metric", "metric_mode", "num_iterations_per_trial"],
         "task",
     )
 
@@ -392,6 +421,8 @@ def main():
 
     if args.max_running_time_per_trial_hours is not None:
         config["task"]["max_running_time_per_trial_hours"] = float(args.max_running_time_per_trial_hours)
+    if args.num_iterations_per_trial is not None:
+        config["task"]["num_iterations_per_trial"] = int(args.num_iterations_per_trial)
 
     target_row = find_target_row(config)
     validate_target_row(
@@ -403,7 +434,7 @@ def main():
     experiment = config["experiment"]
     task = config["task"]
     checkpoint = config.setdefault("checkpoint", {})
-    checkpoint.setdefault("save_last", True)
+    checkpoint["save_last"] = False
     launch = config.setdefault("launch", {})
     launch.setdefault("mode", "torchrun")
     launch.setdefault("nproc_per_node", "auto")
@@ -412,7 +443,7 @@ def main():
         max_study_time_hours = float(args.max_study_time_hours)
         optuna_cfg["max_study_time_hours"] = max_study_time_hours
     else:
-        max_study_time_hours = float(optuna_cfg.get("max_study_time_hours", task["max_running_time_per_trial_hours"]))
+        max_study_time_hours = float(optuna_cfg.get("max_study_time_hours", 0.0))
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     if args.experiment_root:
@@ -458,7 +489,6 @@ def main():
             record_paths=[records_path, all_records_path],
             record_context={
                 "stage": "stage1",
-                "level_hours": max_study_time_hours,
                 "trial_id": trial_id,
                 "learning_rate": sampled_params["learning_rate"],
             },
@@ -521,9 +551,9 @@ def main():
 
     study.optimize(objective, timeout=max_study_time_hours * 3600.0)
 
-    completed_trials = [trial for trial in study.trials if trial.state == optuna.trial.TrialState.COMPLETE]
+    result_trial, completed_trials = choose_result_trial_from_optuna_trials(study.trials)
     pruned_trials = [trial for trial in study.trials if trial.state == optuna.trial.TrialState.PRUNED]
-    best_trial = study.best_trial if completed_trials else None
+    total_running_time_hours = max(0.0, (time.time() - start_time) / 3600.0)
     study_summary = {
         "experiment_name": experiment["name"],
         "experiment_root": experiment_root,
@@ -531,22 +561,31 @@ def main():
         "target_dataset": experiment["target_dataset"],
         "target_model_size": experiment["target_model_size"],
         "selection_metric": task["train_metric"],
-        "best_trial_number": best_trial.number if best_trial is not None else None,
-        "best_params": best_trial.params if best_trial is not None else None,
+        "best_trial_number": result_trial.number if result_trial is not None else None,
+        "best_params": result_trial.params if result_trial is not None else None,
         "best_learning_rate": (
-            float(best_trial.params["learning_rate"])
-            if best_trial is not None and "learning_rate" in best_trial.params
+            float(result_trial.params["learning_rate"])
+            if result_trial is not None and "learning_rate" in result_trial.params
             else None
         ),
-        "best_value": best_trial.value if best_trial is not None else None,
-        "best_train_value": best_trial.user_attrs.get("train_objective_value") if best_trial is not None else None,
-        "best_test_value": best_trial.user_attrs.get("test_objective_value") if best_trial is not None else None,
+        "best_value": result_trial.value if result_trial is not None else None,
+        "best_train_value": result_trial.user_attrs.get("train_objective_value") if result_trial is not None else None,
+        "best_test_value": result_trial.user_attrs.get("test_objective_value") if result_trial is not None else None,
+        "selected_trial_id": (
+            f"trial_{result_trial.number:04d}" if result_trial is not None else ""
+        ),
+        "selected_summary_path": result_trial.user_attrs.get("summary_path") if result_trial is not None else "",
+        "selected_records_path": result_trial.user_attrs.get("records_path") if result_trial is not None else "",
+        "selected_log_path": result_trial.user_attrs.get("log_path") if result_trial is not None else "",
+        "selected_trial_dir": result_trial.user_attrs.get("trial_dir") if result_trial is not None else "",
         "direction": direction,
         "num_trials": len(study.trials),
         "num_completed_trials": len(completed_trials),
         "num_pruned_trials": len(pruned_trials),
+        "num_iterations_per_trial": int(task["num_iterations_per_trial"]),
         "max_running_time_per_trial_hours": float(task["max_running_time_per_trial_hours"]),
         "max_study_time_hours": max_study_time_hours,
+        "total_running_time_hours": total_running_time_hours,
         "all_records_path": os.path.abspath(all_records_path),
         "stop_reason": stop_reason,
     }
@@ -556,6 +595,7 @@ def main():
             "schema_version": 1,
             "stage": "stage1",
             "created_at": datetime.now().isoformat(timespec="seconds"),
+            "total_running_time_hours": total_running_time_hours,
             "config_path": os.path.abspath(args.config),
             "config_snapshot_path": os.path.abspath(config_snapshot_path),
             "experiment_name": experiment["name"],
@@ -567,19 +607,27 @@ def main():
             "max_running_time_per_trial_hours": float(task["max_running_time_per_trial_hours"]),
             "max_study_time_hours": float(max_study_time_hours),
             "selection_metric": task["train_metric"],
-            "best_params": best_trial.params if best_trial is not None else None,
+            "best_params": result_trial.params if result_trial is not None else None,
             "best_learning_rate": (
-                float(best_trial.params["learning_rate"])
-                if best_trial is not None and "learning_rate" in best_trial.params
+                float(result_trial.params["learning_rate"])
+                if result_trial is not None and "learning_rate" in result_trial.params
                 else None
             ),
-            "best_trial_number": best_trial.number if best_trial is not None else None,
-            "best_value": best_trial.value if best_trial is not None else None,
-            "best_train_value": best_trial.user_attrs.get("train_objective_value") if best_trial is not None else None,
-            "best_test_value": best_trial.user_attrs.get("test_objective_value") if best_trial is not None else None,
+            "best_trial_number": result_trial.number if result_trial is not None else None,
+            "best_value": result_trial.value if result_trial is not None else None,
+            "best_train_value": result_trial.user_attrs.get("train_objective_value") if result_trial is not None else None,
+            "best_test_value": result_trial.user_attrs.get("test_objective_value") if result_trial is not None else None,
+            "selected_trial_id": (
+                f"trial_{result_trial.number:04d}" if result_trial is not None else ""
+            ),
+            "selected_summary_path": result_trial.user_attrs.get("summary_path") if result_trial is not None else "",
+            "selected_records_path": result_trial.user_attrs.get("records_path") if result_trial is not None else "",
+            "selected_log_path": result_trial.user_attrs.get("log_path") if result_trial is not None else "",
+            "selected_trial_dir": result_trial.user_attrs.get("trial_dir") if result_trial is not None else "",
             "num_trials": len(study.trials),
             "num_completed_trials": len(completed_trials),
             "num_pruned_trials": len(pruned_trials),
+            "num_iterations_per_trial": int(task["num_iterations_per_trial"]),
             "stop_reason": stop_reason,
         }
         stage1_result_dir = os.path.dirname(args.stage1_result_path)

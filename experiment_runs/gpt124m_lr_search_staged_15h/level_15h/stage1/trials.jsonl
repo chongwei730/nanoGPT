@@ -1,2 +1,0 @@
-{"log_path": "experiment_runs/gpt124m_lr_search_staged_15h/level_15h/stage1/trial_0000/trial.log", "params": {"learning_rate": 1.5381603141849372e-05}, "returncode": 1, "status": "missing_summary", "trial_id": "trial_0000"}
-{"log_path": "experiment_runs/gpt124m_lr_search_staged_15h/level_15h/stage1/trial_0000/trial.log", "params": {"learning_rate": 5.949565994875003e-05}, "returncode": 1, "status": "missing_summary", "trial_id": "trial_0000"}

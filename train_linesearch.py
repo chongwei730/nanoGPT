@@ -20,22 +20,25 @@ import os
 import time
 import math
 import pickle
+import json
 from contextlib import nullcontext
 from lr_sched import LineSearchScheduler
 import logging
 
 import numpy as np
 import torch
+import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.distributed import init_process_group, destroy_process_group
 
+from checkpoint_utils import resolve_resume_checkpoint
 from model import GPTConfig, GPT
 
 # -----------------------------------------------------------------------------
 # default config values designed to train a gpt2 (124M) on OpenWebText
 # I/O
 out_dir = '/scratch.global/chen8596/out'
-eval_interval = 2000
+eval_interval = 200
 log_interval = 1
 eval_iters = 200
 eval_only = False # if True, script exits right after the first eval
@@ -47,8 +50,8 @@ wandb_project = 'owt'
 wandb_run_name = 'gpt2' # 'run' + str(time.time())
 # data
 dataset = 'openwebtext'
-gradient_accumulation_steps = 5 * 8 # used to simulate larger batch sizes
-batch_size = 12 # if gradient_accumulation_steps > 1, this is the micro-batch size
+gradient_accumulation_steps = 4 * 4 # used to simulate larger batch sizes
+batch_size = 30 # if gradient_accumulation_steps > 1, this is the micro-batch size
 block_size = 1024
 data_backend = 'ram' # 'memmap' keeps files mmaped, 'ram' loads them into process memory
 # model
@@ -59,7 +62,7 @@ dropout = 0.0 # for pretraining 0 is good, for finetuning try 0.1+
 bias = False # do we use bias inside LayerNorm and Linear layers?
 # adamw optimizer
 learning_rate = 1e-6 # max learning rate
-max_iters = 10000 # total number of training iterations
+max_iters = 5000 # total number of training iterations
 weight_decay = 1e-1
 beta1 = 0.9
 beta2 = 0.95
@@ -67,14 +70,14 @@ grad_clip = 1.0 # clip gradients at this value, or disable if == 0.0
 # learning rate decay settings
 decay_lr = True # whether to decay the learning rate
 warmup_iters = 100  # how many steps to warm up for
-lr_decay_iters = 10000 # should be ~= max_iters per Chinchilla
+lr_decay_iters = 5000 # should be ~= max_iters per Chinchilla
 min_lr = 6e-5 # minimum learning rate, should be ~= learning_rate/10 per Chinchilla
 # line search settings
-linesearch_interval = 1000
+linesearch_interval = 0
 linesearch_accum_steps = 32
 linesearch_num_search = 30
 linesearch_start_lr = 0.0
-linesearch_c1 = 0.1
+linesearch_c1 = 0.2
 linesearch_search_mode = 'bisection'
 linesearch_factor = 0.5
 # DDP settings
@@ -84,10 +87,28 @@ device = 'cuda' # examples: 'cpu', 'cuda', 'cuda:0', 'cuda:1' etc., or try 'mps'
 dtype = 'bfloat16' if torch.cuda.is_available() and torch.cuda.is_bf16_supported() else 'float16' # 'float32', 'bfloat16', or 'float16', the latter will auto implement a GradScaler
 compile = True # use PyTorch 2.0 to compile the model to be faster
 use_flash_attention = True # use PyTorch scaled_dot_product_attention when available
+# experiment controls
+experiment_name = ''
+trial_id = ''
+experiment_metric_mode = 'min'
+experiment_train_target_value = -1.0
+experiment_train_target_enabled = False
+experiment_test_target_value = -1.0
+experiment_test_target_enabled = False
+max_running_time_hours = 0.0
+save_last_checkpoint = True
+experiment_summary_path = ''
+prune_signal_path = ''
 # -----------------------------------------------------------------------------
 config_keys = [k for k,v in globals().items() if not k.startswith('_') and isinstance(v, (int, float, bool, str))]
 exec(open('configurator.py').read()) # overrides from command line or config file
 config = {k: globals()[k] for k in config_keys} # will be useful for logging
+always_save_checkpoint = False
+save_last_checkpoint = False
+config['always_save_checkpoint'] = False
+config['save_last_checkpoint'] = False
+linesearch_interval = max(1, int(max_iters * 0.1))
+config['linesearch_interval'] = linesearch_interval
 # -----------------------------------------------------------------------------
 
 # various inits, derived attributes, I/O setup
@@ -154,6 +175,7 @@ def get_batch_linesearch(split, mode=False):
 
 # init these up here, can override if init_from='resume' (i.e. from a checkpoint)
 iter_num = 0
+best_train_loss = 1e9
 best_val_loss = 1e9
 
 # attempt to derive vocab_size from the dataset
@@ -181,7 +203,8 @@ if init_from == 'scratch':
 elif init_from == 'resume':
     print(f"Resuming training from {out_dir}")
     # resume training from a checkpoint.
-    ckpt_path = os.path.join(out_dir, 'ckpt.pt')
+    ckpt_path = resolve_resume_checkpoint(out_dir)
+    print(f"Loading checkpoint from {ckpt_path}")
     checkpoint = torch.load(ckpt_path, map_location=device)
     checkpoint_model_args = checkpoint['model_args']
     # force these config attributes to be equal otherwise we can't even resume training
@@ -261,6 +284,44 @@ scheduler = LineSearchScheduler(optimizer=optimizer,
                                 search_mode=linesearch_search_mode, 
                                 warmup_length=warmup_iters)
 
+def save_checkpoint(path):
+    return
+
+def write_experiment_summary(
+    termination_reason,
+    elapsed_hours,
+):
+    if not experiment_summary_path or not master_process:
+        return
+    summary = {
+        'experiment_name': experiment_name,
+        'trial_id': trial_id,
+        'train_script': 'train_linesearch.py',
+        'out_dir': out_dir,
+        'best_checkpoint_path': '',
+        'last_checkpoint_path': '',
+        'best_train_loss': float(best_train_loss),
+        'best_val_loss': float(best_val_loss),
+        'iter_num': int(iter_num),
+        'learning_rate': float(learning_rate),
+        'metric_mode': experiment_metric_mode,
+        'wall_clock_hours': float(elapsed_hours),
+        'forward_backward_hours': float(elapsed_hours),
+        'forward_hours': float(forward_seconds / 3600.0),
+        'backward_hours': float(backward_seconds / 3600.0),
+        'elapsed_wall_clock_hours': float((time.time() - train_start_time) / 3600.0),
+        'termination_reason': termination_reason,
+    }
+    with open(experiment_summary_path, 'w', encoding='utf-8') as f:
+        json.dump(summary, f, indent=2, sort_keys=True)
+
+def prune_requested():
+    return bool(prune_signal_path) and os.path.exists(prune_signal_path)
+
+def training_clock_now():
+    if device_type == 'cuda':
+        torch.cuda.synchronize(device)
+    return time.time()
 
 # learning rate decay scheduler (cosine with warmup)
 
@@ -273,10 +334,15 @@ if wandb_log and master_process:
 # training loop
 X, Y = get_batch_linesearch('train') # fetch the very first batch
 
+train_start_time = time.time()
+forward_backward_seconds = 0.0
+forward_seconds = 0.0
+backward_seconds = 0.0
 t0 = time.time()
 local_iter_num = 0 # number of iterations in the lifetime of this process
 raw_model = model.module if ddp else model # unwrap DDP container if needed
 running_mfu = -1.0
+termination_reason = 'max_iters_reached'
 while True:
     # print(iter_num, linesearch_interval, warmup_iters)
     if iter_num % linesearch_interval == 0 or (iter_num <= warmup_iters and iter_num % warmup_iters == 0):
@@ -367,31 +433,35 @@ while True:
 
 
     # evaluate the loss on train/val sets and write checkpoints
-    if iter_num % eval_interval == 0 and master_process:
-        losses = estimate_loss()
-        print(f"step {iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
-        if wandb_log:
-            wandb.log({
-                "iter": iter_num,
-                "train/loss": losses['train'],
-                "val/loss": losses['val'],
-                "lr": lr,
-                "mfu": running_mfu*100, # convert to percentage
-            })
-        if losses['val'] < best_val_loss or always_save_checkpoint:
-            best_val_loss = losses['val']
-            if iter_num > 0:
-                checkpoint = {
-                    'model': raw_model.state_dict(),
-                    'optimizer': optimizer.state_dict(),
-                    'model_args': model_args,
-                    'iter_num': iter_num,
-                    'best_val_loss': best_val_loss,
-                    'config': config,
-                }
-                print(f"saving checkpoint to {out_dir}")
-                torch.save(checkpoint, os.path.join(out_dir, 'ckpt.pt'))
+    if iter_num % eval_interval == 0:
+        should_terminate = False
+        if master_process:
+            losses = estimate_loss()
+            print(f"step {iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
+            best_train_loss = min(best_train_loss, losses['train'].item())
+            if wandb_log:
+                wandb.log({
+                    "iter": iter_num,
+                    "train/loss": losses['train'],
+                    "val/loss": losses['val'],
+                    "lr": lr,
+                    "mfu": running_mfu*100, # convert to percentage
+                })
+            if losses['val'] < best_val_loss or always_save_checkpoint:
+                best_val_loss = losses['val']
+                if iter_num > 0:
+                    save_checkpoint(os.path.join(out_dir, 'ckpt.pt'))
+            if prune_requested():
+                termination_reason = 'pruned'
+                should_terminate = True
+        if ddp:
+            termination_flag = torch.tensor([int(should_terminate)], device=device)
+            dist.broadcast(termination_flag, src=0)
+            should_terminate = bool(termination_flag.item())
+        if should_terminate:
+            break
     if iter_num == 0 and eval_only:
+        termination_reason = 'eval_only'
         break
 
     # forward backward update, with optional gradient accumulation to simulate larger batch size
@@ -403,13 +473,18 @@ while True:
             # I really dislike that this bloats the code and forces us to repeat code
             # looking at the source of that context manager, it just toggles this variable
             model.require_backward_grad_sync = (micro_step == gradient_accumulation_steps - 1)
+        forward_start_time = training_clock_now()
         with ctx:
             logits, loss = model(X, Y)
             loss = loss / gradient_accumulation_steps # scale the loss to account for gradient accumulation
+        forward_seconds += training_clock_now() - forward_start_time
         # immediately async prefetch next batch while model is doing the forward pass on the GPU
         X, Y = get_batch_linesearch('train')
         # backward pass, with gradient scaling if training in fp16
+        backward_start_time = training_clock_now()
         scaler.scale(loss).backward()
+        backward_seconds += training_clock_now() - backward_start_time
+    forward_backward_seconds = forward_seconds + backward_seconds
     # clip the gradient
     if grad_clip != 0.0:
         scaler.unscale_(optimizer)
@@ -437,7 +512,19 @@ while True:
 
     # termination conditions
     if iter_num > max_iters:
+        termination_reason = 'max_iters_reached'
         break
+    if max_running_time_hours > 0:
+        training_hours = forward_backward_seconds / 3600.0
+        if training_hours >= max_running_time_hours:
+            termination_reason = 'time_limit_reached'
+            break
 
+if master_process and save_last_checkpoint and iter_num > 0:
+    save_checkpoint(os.path.join(out_dir, 'ckpt_last.pt'))
+write_experiment_summary(
+    termination_reason=termination_reason,
+    elapsed_hours=forward_backward_seconds / 3600.0,
+)
 if ddp:
     destroy_process_group()

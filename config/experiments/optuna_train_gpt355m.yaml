@@ -1,11 +1,11 @@
 experiment:
-  name: gpt124m_lr_search
+  name: gpt355m_lr_search
   train_script: train.py
-  train_config: config/train_gpt2.py
+  train_config: config/train_gpt2_355m_7b.py
   output_root: experiment_runs
   target_family: GPT
   target_dataset: OpenWebText
-  target_model_size: 124M
+  target_model_size: 355M
 
 launch:
   mode: torchrun
@@ -19,7 +19,8 @@ fixed_args:
   eval_iters: 20
   log_interval: 10
   always_save_checkpoint: true
-  max_iters: 5000
+  max_iters: 13600
+  lr_decay_iters: 13600
 
 hyperparameters:
   learning_rate:
@@ -30,11 +31,11 @@ task:
   train_metric: train_loss
   test_metric: val_loss
   metric_mode: min
-  num_iterations_per_trial: 5000
+  num_iterations_per_trial: 13600
   max_running_time_per_trial_hours: 0.0
 
 optuna:
-  max_study_time_hours: 15.0
+  max_study_time_hours: 120.0
   num_rungs: 3
   pruning:
     enabled: true
@@ -46,7 +47,7 @@ optuna:
 wandb:
   enabled: true
   project: owt
-  run_name_prefix: gpt124m_lr_search
+  run_name_prefix: gpt355m_lr_search
 
 checkpoint:
   save_last: true

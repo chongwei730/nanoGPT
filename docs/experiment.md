@@ -19,6 +19,7 @@ an explicit instruction to do so.
 
 - Framework: Optuna
 - Sampler: TPE (default Optuna sampler)
+- Search controller: serial successive halving
 - Search space: learning rate only
 
 Example config:
@@ -63,18 +64,51 @@ task:
 
 ## Trial Execution
 
-Stage one:
+Optuna search:
 Use Optuna to search only the learning rate within the predefined learning rate range.
-Each Optuna trial is limited by `task.max_running_time_per_trial_hours`.
+Each trial is limited by `task.max_running_time_per_trial_hours`.
 All other hyperparameters must remain fixed.
-In stage one, always use 5% of the total training tokens as training length of one trial.
 
-Stage two:
-Use the best learning rate found by Optuna and run the final training trial.
-The reported total experiment time only includes this stage-two final training run,
-not the Optuna search time from stage one.
+Serial successive halving:
+The current staged search is not a single Optuna study with in-process pruning.
+Instead, `run_stage1_optuna.py` acts as a serial controller over explicit halving levels.
 
-Run Stage1-2 multiple times for different level of `task.max_running_time_per_trial_hours`. 
+Level construction:
+- The tuning budgets come from `optuna.max_study_time_hours_levels`.
+- The controller derives one iteration budget per level from
+  `task.num_iterations_per_trial`.
+- With reduction factor 4, the first level starts with `4^(L-1)` trials for `L` levels.
+
+Per-level behavior:
+1. Launch every active trial for the current rung budget.
+2. Persist trial artifacts under `shared_trials/<trial_id>/`.
+3. Snapshot machine-readable outputs into `level_x/stage1/trial_snapshots/<trial_id>/`.
+4. Rank trials by `task.train_metric`.
+5. Prune the bottom 3/4 of trials.
+6. Resume the surviving 1/4 from checkpoint for the next level.
+
+Resume semantics:
+- The first rung runs each trial with `init_from=scratch`.
+- Later rungs run survivors with `init_from=resume`.
+- Resume happens from the checkpoint already stored in that trial's shared directory.
+- The resume path must accept `ckpt.pt` when present and fall back to `ckpt_last.pt`
+  when only the last checkpoint exists.
+
+Final-result selection:
+There is no separate second training pass anymore.
+Instead, after each Optuna run finishes, the last completed non-pruned trial is promoted
+to the final result for that tuning budget.
+
+Output compatibility:
+The repository still writes `stage1_result.json`, `stage2_result.json`,
+`stage2/final/summary.json`, and related manifest files so downstream scripts can keep
+using the same paths as before.
+
+Early stopping behavior:
+Pruning happens only at rung boundaries, after all active trials for that level have finished.
+There is no mid-rung pruning. Within a rung, evaluation still happens at the configured
+evaluation interval and any checkpoint written during the rung is part of the trial state
+that may later be resumed.
 
 ## Logging
 
@@ -88,27 +122,30 @@ Track the following at each logging or evaluation interval:
 - `learning_rate`
 - `wall_clock_time`
 
+In the current implementation, Optuna pruning decisions are made from the reported
+evaluation metric at each eval step.
+
 ## Checkpointing
 
-During training:
+Checkpointing is required for serial successive halving.
 
-- Save the best model checkpoint using the best `test_metric`
-- Save the last checkpoint
+Stage-one trial layout:
+- Each trial keeps a persistent working directory at `shared_trials/<trial_id>/`.
+- This directory is reused across levels for the same trial.
+- Checkpoints, `summary.json`, `records.jsonl`, and `trial.log` live in that directory
+  while the trial is active.
 
-Protocol form:
+Checkpoint policy:
+- The staged search should save at least a resumable last checkpoint for every trial.
+- A best checkpoint may also exist, but the resume path must not depend on it.
+- After a level finishes, survivors continue from the saved checkpoint in their existing
+  shared trial directory.
 
-```yaml
-checkpoint:
-  save_best: true
-  metric: test_metric
-  mode: max / min
-```
-
-Current implementation detail:
-
-- Best checkpoint is typically saved as `ckpt.pt`
-- Last checkpoint may also be saved when enabled
-- Best-model selection follows the configured metric mode
+Level snapshots and promoted outputs:
+- After each rung execution, the controller copies summary/log/records into
+  `level_x/stage1/trial_snapshots/`.
+- The selected non-pruned trial is promoted into the stage-two-compatible layout:
+  `stage1_result.json`, `stage2_result.json`, `stage2/final/summary.json`, and manifests.
 
 ## Time Definition
 

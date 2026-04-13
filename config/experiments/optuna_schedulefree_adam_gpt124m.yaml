@@ -1,5 +1,5 @@
 experiment:
-  name: gpt124m_lr_search
+  name: gpt124m_schedulefree_adam_lr_search
   train_script: train.py
   train_config: config/train_gpt2.py
   output_root: experiment_runs
@@ -20,6 +20,8 @@ fixed_args:
   log_interval: 10
   always_save_checkpoint: true
   max_iters: 5000
+  optimizer_type: AdamWScheduleFree
+  decay_lr: false
 
 hyperparameters:
   learning_rate:
@@ -46,7 +48,7 @@ optuna:
 wandb:
   enabled: true
   project: owt
-  run_name_prefix: gpt124m_lr_search
+  run_name_prefix: gpt124m_schedulefree_adam_lr_search
 
 checkpoint:
   save_last: true

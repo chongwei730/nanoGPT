@@ -29,11 +29,12 @@ task:
   train_metric: train_loss
   test_metric: val_loss
   metric_mode: min
-  max_running_time_per_trial_hours: 3
+  num_iterations_per_trial: 5000
+  max_running_time_per_trial_hours: 0
 
 optuna:
   max_study_time_hours: 15
-  max_study_time_hours_levels: [3, 6, 15]
+  num_rungs: 3
   pruning:
     enabled: true
     type: median

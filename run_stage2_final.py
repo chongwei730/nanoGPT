@@ -1,8 +1,9 @@
 import argparse
 import json
 import os
-import subprocess
+import shutil
 import sys
+import time
 from datetime import datetime
 
 import run_optuna_experiment
@@ -50,14 +51,26 @@ def stage1_results_from_input(path):
     )
 
 
+def write_json(path, payload):
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2, sort_keys=True)
+
+
+def copy_if_exists(src, dst):
+    if src and os.path.exists(src):
+        shutil.copy2(src, dst)
+        return True
+    return False
+
+
 def run_stage2(stage1_result_path, config_override):
+    start_time = time.time()
     stage1_result = read_json(stage1_result_path)
     best_params = stage1_result.get("best_params") or {}
     if "learning_rate" not in best_params:
         raise ValueError(f"Stage-one result has no best learning_rate: {stage1_result_path}")
 
     config_path = config_override or stage1_result["config_snapshot_path"]
-    config = run_optuna_experiment.load_config(config_path)
     stage1_root = stage1_result["stage1_root"]
     level_root = os.path.dirname(stage1_root)
     stage2_root = ensure_dir(os.path.join(level_root, "stage2"))
@@ -65,44 +78,28 @@ def run_stage2(stage1_result_path, config_override):
     summary_path = os.path.join(final_dir, "summary.json")
     log_path = os.path.join(final_dir, "stage2.log")
     records_path = os.path.join(final_dir, "records.jsonl")
-    prune_signal_path = os.path.join(final_dir, "PRUNE")
-    if os.path.exists(prune_signal_path):
-        os.remove(prune_signal_path)
+    selected_summary_path = stage1_result.get("selected_summary_path", "")
+    selected_records_path = stage1_result.get("selected_records_path", "")
+    selected_log_path = stage1_result.get("selected_log_path", "")
+    selected_trial_id = stage1_result.get("selected_trial_id", "")
 
-    command = run_optuna_experiment.build_command(
-        config=config,
-        trial_dir=final_dir,
-        trial_id="stage2_final",
-        sampled_params={"learning_rate": best_params["learning_rate"]},
-        summary_path=summary_path,
-        prune_signal_path=prune_signal_path,
-        max_running_time_hours=0.0,
-    )
-
-    print(
-        "[stage2] running final training for "
-        f"{stage1_result['max_study_time_hours']:g}h tuning budget "
-        f"with learning_rate={best_params['learning_rate']}"
-    )
-    returncode, _ = run_optuna_experiment.stream_process(
-        command,
-        log_path,
-        record_paths=[records_path],
-        record_context={
-            "stage": "stage2",
-            "level_hours": stage1_result["max_study_time_hours"],
-            "trial_id": "stage2_final",
-            "learning_rate": best_params["learning_rate"],
-        },
-    )
-    summary = run_optuna_experiment.read_summary(summary_path)
+    summary = run_optuna_experiment.read_summary(selected_summary_path)
     if summary is None:
-        raise RuntimeError(f"Stage two did not produce a summary file at {summary_path}.")
+        raise RuntimeError(
+            f"Could not read selected trial summary from {selected_summary_path!r}."
+        )
+    promoted_summary = dict(summary)
+    promoted_summary["trial_id"] = selected_trial_id or summary.get("trial_id", "stage2_final")
+    promoted_summary["out_dir"] = os.path.abspath(final_dir)
+    write_json(summary_path, promoted_summary)
+    copy_if_exists(selected_records_path, records_path)
+    copy_if_exists(selected_log_path, log_path)
 
     stage2_result = {
         "schema_version": 1,
         "stage": "stage2",
         "created_at": datetime.now().isoformat(timespec="seconds"),
+        "total_running_time_hours": max(0.0, (time.time() - start_time) / 3600.0),
         "stage1_result_path": os.path.abspath(stage1_result_path),
         "config_path": os.path.abspath(config_path),
         "stage2_root": os.path.abspath(stage2_root),
@@ -111,17 +108,22 @@ def run_stage2(stage1_result_path, config_override):
         "log_path": os.path.abspath(log_path),
         "records_path": os.path.abspath(records_path),
         "loaded_learning_rate": float(best_params["learning_rate"]),
+        "num_iterations_per_trial": int(stage1_result["num_iterations_per_trial"]),
         "max_study_time_hours": float(stage1_result["max_study_time_hours"]),
         "max_running_time_per_trial_hours": float(stage1_result["max_running_time_per_trial_hours"]),
-        "returncode": int(returncode),
-        "best_train_loss": float(summary["best_train_loss"]),
-        "best_val_loss": float(summary["best_val_loss"]),
-        "termination_reason": summary.get("termination_reason"),
-        "stage2_forward_backward_hours": summary.get("forward_backward_hours", summary.get("wall_clock_hours")),
-        "elapsed_wall_clock_hours": summary.get("elapsed_wall_clock_hours"),
+        "returncode": 0,
+        "best_train_loss": float(promoted_summary["best_train_loss"]),
+        "best_val_loss": float(promoted_summary["best_val_loss"]),
+        "termination_reason": promoted_summary.get("termination_reason"),
+        "stage2_forward_backward_hours": promoted_summary.get("forward_backward_hours", promoted_summary.get("wall_clock_hours")),
+        "elapsed_wall_clock_hours": promoted_summary.get("elapsed_wall_clock_hours"),
     }
     stage2_result_path = os.path.join(stage2_root, "stage2_result.json")
     write_json(stage2_result_path, stage2_result)
+    print(
+        "[stage2] promoted selected completed trial to final result for "
+        f"{stage1_result['max_study_time_hours']:g}h tuning budget"
+    )
     print(f"[stage2] wrote result: {stage2_result_path}")
     return stage2_result
 

@@ -1,0 +1,121 @@
+{
+  "generated_at": "2026-04-12T19:29:49Z",
+  "experiment_root": "/users/9/chen8596/nanoGPT/experiment_runs",
+  "entry_count": 2,
+  "entries": [
+    {
+      "family": "GPT",
+      "model_size": "124M",
+      "size_label": "124M/5B",
+      "method": "Linesearch",
+      "selection_rule": "min_loss",
+      "selected": {
+        "family": "GPT",
+        "model_size": "124M",
+        "size_label": "124M/5B",
+        "method": "Linesearch",
+        "tuning_time_hours": null,
+        "loss": 3.2586450576782227,
+        "wall_clock_hours": 2.509728064801958,
+        "source_path": "experiment_runs/gpt124m_line_search_stage2_c0.1/final/summary.json",
+        "metadata": {
+          "kind": "standalone_final",
+          "experiment_name": "gpt124m_line_search",
+          "stage2_result_path": "experiment_runs/gpt124m_line_search_stage2_c0.1/stage2_result.json",
+          "loaded_learning_rate": 1e-06
+        }
+      },
+      "candidates": [
+        {
+          "family": "GPT",
+          "model_size": "124M",
+          "size_label": "124M/5B",
+          "method": "Linesearch",
+          "tuning_time_hours": null,
+          "loss": 3.2586450576782227,
+          "wall_clock_hours": 2.509728064801958,
+          "source_path": "experiment_runs/gpt124m_line_search_stage2_c0.1/final/summary.json",
+          "metadata": {
+            "kind": "standalone_final",
+            "experiment_name": "gpt124m_line_search",
+            "stage2_result_path": "experiment_runs/gpt124m_line_search_stage2_c0.1/stage2_result.json",
+            "loaded_learning_rate": 1e-06
+          }
+        }
+      ]
+    },
+    {
+      "family": "GPT",
+      "model_size": "124M",
+      "size_label": "124M/5B",
+      "method": "cosine",
+      "selection_rule": "min_loss",
+      "selected": {
+        "family": "GPT",
+        "model_size": "124M",
+        "size_label": "124M/5B",
+        "method": "cosine",
+        "tuning_time_hours": 15.0,
+        "loss": 3.2945644855499268,
+        "wall_clock_hours": 1.1106890577077866,
+        "source_path": "experiment_runs/gpt124m_lr_search_staged_15h/level_15h/stage2/final/summary.json",
+        "metadata": {
+          "kind": "staged_search",
+          "experiment_name": "gpt124m_lr_search",
+          "stage2_result_path": "experiment_runs/gpt124m_lr_search_staged_15h/level_15h/stage2/stage2_result.json",
+          "stage1_summary_path": "experiment_runs/gpt124m_lr_search_staged_15h/level_15h/stage1/study_summary.json"
+        }
+      },
+      "candidates": [
+        {
+          "family": "GPT",
+          "model_size": "124M",
+          "size_label": "124M/5B",
+          "method": "cosine",
+          "tuning_time_hours": 15.0,
+          "loss": 3.2945644855499268,
+          "wall_clock_hours": 1.1106890577077866,
+          "source_path": "experiment_runs/gpt124m_lr_search_staged_15h/level_15h/stage2/final/summary.json",
+          "metadata": {
+            "kind": "staged_search",
+            "experiment_name": "gpt124m_lr_search",
+            "stage2_result_path": "experiment_runs/gpt124m_lr_search_staged_15h/level_15h/stage2/stage2_result.json",
+            "stage1_summary_path": "experiment_runs/gpt124m_lr_search_staged_15h/level_15h/stage1/study_summary.json"
+          }
+        },
+        {
+          "family": "GPT",
+          "model_size": "124M",
+          "size_label": "124M/5B",
+          "method": "cosine",
+          "tuning_time_hours": 6.0,
+          "loss": 3.439756393432617,
+          "wall_clock_hours": 1.106274413201544,
+          "source_path": "experiment_runs/gpt124m_lr_search_staged_6h/level_6h/stage2/final/summary.json",
+          "metadata": {
+            "kind": "staged_search",
+            "experiment_name": "gpt124m_lr_search",
+            "stage2_result_path": "experiment_runs/gpt124m_lr_search_staged_6h/level_6h/stage2/stage2_result.json",
+            "stage1_summary_path": "experiment_runs/gpt124m_lr_search_staged_6h/level_6h/stage1/study_summary.json"
+          }
+        },
+        {
+          "family": "GPT",
+          "model_size": "124M",
+          "size_label": "124M/5B",
+          "method": "cosine",
+          "tuning_time_hours": 3.0,
+          "loss": 3.462355375289917,
+          "wall_clock_hours": 1.107730439901352,
+          "source_path": "experiment_runs/gpt124m_lr_search_staged_3h/level_3h/stage2/final/summary.json",
+          "metadata": {
+            "kind": "staged_search",
+            "experiment_name": "gpt124m_lr_search",
+            "stage2_result_path": "experiment_runs/gpt124m_lr_search_staged_3h/level_3h/stage2/stage2_result.json",
+            "stage1_summary_path": "experiment_runs/gpt124m_lr_search_staged_3h/level_3h/stage1/study_summary.json"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -27,6 +27,7 @@ import torch
 from torch.distributed import destroy_process_group, init_process_group
 from torch.nn.parallel import DistributedDataParallel as DDP
 
+from checkpoint_utils import resolve_resume_checkpoint
 from lr_sched_muon_split_armijo import LineSearchScheduler
 from model import GPT, GPTConfig
 from muon import MuonWithAuxAdam, SingleDeviceMuonWithAuxAdam
@@ -97,6 +98,8 @@ use_flash_attention = True # use PyTorch scaled_dot_product_attention when avail
 config_keys = [k for k, v in globals().items() if not k.startswith('_') and isinstance(v, (int, float, bool, str))]
 exec(open('configurator.py').read()) # overrides from command line or config file
 config = {k: globals()[k] for k in config_keys} # will be useful for logging
+always_save_checkpoint = False
+config['always_save_checkpoint'] = False
 # -----------------------------------------------------------------------------
 
 # various inits, derived attributes, I/O setup
@@ -190,7 +193,8 @@ if init_from == 'scratch':
     model = GPT(GPTConfig(**model_args))
 elif init_from == 'resume':
     print(f"Resuming training from {out_dir}")
-    ckpt_path = os.path.join(out_dir, 'ckpt.pt')
+    ckpt_path = resolve_resume_checkpoint(out_dir)
+    print(f"Loading checkpoint from {ckpt_path}")
     checkpoint = torch.load(ckpt_path, map_location=device)
     checkpoint_model_args = checkpoint['model_args']
     for k in ['n_layer', 'n_head', 'n_embd', 'block_size', 'bias', 'vocab_size']:
@@ -371,18 +375,6 @@ while True:
             })
         if losses['val'] < best_val_loss or always_save_checkpoint:
             best_val_loss = losses['val']
-            if iter_num > 0:
-                checkpoint = {
-                    'model': raw_model.state_dict(),
-                    'optimizer': optimizer.state_dict(),
-                    'scheduler': scheduler.state_dict(),
-                    'model_args': model_args,
-                    'iter_num': iter_num,
-                    'best_val_loss': best_val_loss,
-                    'config': config,
-                }
-                print(f"saving checkpoint to {out_dir}")
-                torch.save(checkpoint, os.path.join(out_dir, 'ckpt.pt'))
     if iter_num == 0 and eval_only:
         break
 
