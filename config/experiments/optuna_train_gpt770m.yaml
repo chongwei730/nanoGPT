@@ -36,7 +36,6 @@ task:
 
 optuna:
   max_study_time_hours: 120.0
-  num_rungs: 3
   pruning:
     enabled: true
     type: median

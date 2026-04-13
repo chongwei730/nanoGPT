@@ -25,7 +25,7 @@ def parse_args():
         "--num-trials",
         type=int,
         default=None,
-        help="Optional initial number of trials for serial successive halving.",
+        help="Optional initial number of trials for serial successive halving. Rung count is inferred automatically.",
     )
     return parser.parse_args()
 
@@ -65,11 +65,17 @@ def controller_state_path(run_root):
     return os.path.join(run_root, "controller_state.json")
 
 
-def rung_count_from_config(config):
-    optuna_cfg = config.get("optuna", {})
-    num_rungs = int(optuna_cfg.get("num_rungs", 1))
-    if num_rungs < 1:
-        raise ValueError("optuna.num_rungs must be >= 1.")
+def inferred_rung_count(initial_trial_count, reduction_factor):
+    if initial_trial_count < 1:
+        raise ValueError("initial_trial_count must be >= 1.")
+    if reduction_factor < 2:
+        raise ValueError("reduction_factor must be >= 2.")
+
+    num_rungs = 1
+    active_trials = int(initial_trial_count)
+    while active_trials > 1:
+        active_trials = int(math.ceil(float(active_trials) / float(reduction_factor)))
+        num_rungs += 1
     return num_rungs
 
 
@@ -497,7 +503,6 @@ def main():
     experiment = config["experiment"]
     task = config["task"]
     hyperparameters = config["hyperparameters"]
-    num_rungs = rung_count_from_config(config)
     reduction_factor = 4
 
     if set(hyperparameters.keys()) != {"learning_rate"}:
@@ -517,15 +522,18 @@ def main():
             )
         )
 
+    initial_trial_count = int(args.num_trials) if args.num_trials is not None else 1
+    if initial_trial_count < 1:
+        raise ValueError("--num-trials must be >= 1.")
+    num_rungs = inferred_rung_count(
+        initial_trial_count=initial_trial_count,
+        reduction_factor=reduction_factor,
+    )
     rung_budgets = rung_iteration_budgets(
         total_iters=int(task["num_iterations_per_trial"]),
         num_levels=num_rungs,
         reduction_factor=reduction_factor,
     )
-    default_initial_trial_count = reduction_factor ** max(0, num_rungs - 1)
-    initial_trial_count = int(args.num_trials) if args.num_trials is not None else default_initial_trial_count
-    if initial_trial_count < 1:
-        raise ValueError("--num-trials must be >= 1.")
     state = load_or_initialize_controller_state(
         run_root=run_root,
         args=args,
