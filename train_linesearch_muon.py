@@ -20,6 +20,7 @@ import math
 import os
 import pickle
 import time
+import json
 from contextlib import nullcontext
 
 import numpy as np
@@ -35,21 +36,17 @@ from muon import MuonWithAuxAdam, SingleDeviceMuonWithAuxAdam
 # -----------------------------------------------------------------------------
 # default config values designed to train a gpt2 (124M) on OpenWebText
 # I/O
-out_dir = '/scratch.global/chen8596/out'
+out_dir = '/work/nvme/bgop/cchen47/out'
 eval_interval = 2000
 log_interval = 1
 eval_iters = 200
 eval_only = False # if True, script exits right after the first eval
 always_save_checkpoint = True # if True, always save a checkpoint after each eval
 init_from = 'scratch' # 'scratch' or 'resume' or 'gpt2*'
-# wandb logging
-wandb_log = False # disabled by default
-wandb_project = 'owt'
-wandb_run_name = 'gpt2-linesearch-muon' # 'run' + str(time.time())
 # data
 dataset = 'openwebtext'
-gradient_accumulation_steps = 5 * 8 # used to simulate larger batch sizes
-batch_size = 12 # if gradient_accumulation_steps > 1, this is the micro-batch size
+gradient_accumulation_steps = 4 * 4 # used to simulate larger batch sizes
+batch_size = 30 # if gradient_accumulation_steps > 1, this is the micro-batch size
 block_size = 1024
 data_backend = 'ram' # 'memmap' keeps files mmaped, 'ram' loads them into process memory
 # model
@@ -94,12 +91,27 @@ device = 'cuda' # examples: 'cpu', 'cuda', 'cuda:0', 'cuda:1' etc., or try 'mps'
 dtype = 'bfloat16' if torch.cuda.is_available() and torch.cuda.is_bf16_supported() else 'float16' # 'float32', 'bfloat16', or 'float16'
 compile = True # use PyTorch 2.0 to compile the model to be faster
 use_flash_attention = True # use PyTorch scaled_dot_product_attention when available
+# experiment controls
+experiment_name = ''
+trial_id = ''
+experiment_metric_mode = 'min'
+experiment_train_target_value = -1.0
+experiment_train_target_enabled = False
+experiment_test_target_value = -1.0
+experiment_test_target_enabled = False
+max_running_time_hours = 0.0
+save_last_checkpoint = True
+experiment_summary_path = ''
+prune_signal_path = ''
+stop_at_eval_boundary = False
 # -----------------------------------------------------------------------------
 config_keys = [k for k, v in globals().items() if not k.startswith('_') and isinstance(v, (int, float, bool, str))]
 exec(open('configurator.py').read()) # overrides from command line or config file
 config = {k: globals()[k] for k in config_keys} # will be useful for logging
 always_save_checkpoint = False
+save_last_checkpoint = False
 config['always_save_checkpoint'] = False
+config['save_last_checkpoint'] = False
 # -----------------------------------------------------------------------------
 
 # various inits, derived attributes, I/O setup
@@ -132,7 +144,7 @@ ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torc
 ctx = nullcontext() if device_type == 'cpu' else torch.amp.autocast(device_type=device_type, dtype=ptdtype)
 
 # poor man's data loader
-data_dir = os.path.join('/scratch.global/chen8596/nanogpt_data', dataset)
+data_dir = os.path.join('/work/nvme/bgop/cchen47/nanogpt_data', dataset)
 def load_token_data(filename):
     path = os.path.join(data_dir, filename)
     if data_backend == 'memmap':
@@ -148,12 +160,14 @@ val_data = load_token_data('val.bin')
 if master_process:
     print(f"using data backend: {data_backend}")
 
-def get_batch(split):
+def get_batch(split, to_device=True):
     data = train_data if split == 'train' else val_data
     ix = torch.randint(0, len(data) - block_size, (batch_size,)).numpy()
     offsets = np.arange(block_size)
     x = torch.from_numpy(data[ix[:, None] + offsets]).long()
     y = torch.from_numpy(data[ix[:, None] + offsets + 1]).long()
+    if not to_device:
+        return x, y
     if device_type == 'cuda':
         x = x.pin_memory().to(device, non_blocking=True)
         y = y.pin_memory().to(device, non_blocking=True)
@@ -163,6 +177,7 @@ def get_batch(split):
 
 # init these up here, can override if init_from='resume'
 iter_num = 0
+best_train_loss = 1e9
 best_val_loss = 1e9
 
 # attempt to derive vocab_size from the dataset
@@ -309,15 +324,58 @@ def get_lr(it):
     coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))
     return min_lr + coeff * (learning_rate - min_lr)
 
-if wandb_log and master_process:
-    import wandb
-    wandb.init(project=wandb_project, name=wandb_run_name, config=config)
+
+def should_stop_at_eval_boundary():
+    if not stop_at_eval_boundary:
+        return False
+    return (iter_num + eval_interval) > max_iters
+
+
+def write_experiment_summary(termination_reason, elapsed_hours, train_start_time, forward_seconds, backward_seconds):
+    if not experiment_summary_path or not master_process:
+        return
+    summary = {
+        'experiment_name': experiment_name,
+        'trial_id': trial_id,
+        'train_script': 'train_linesearch_muon.py',
+        'out_dir': out_dir,
+        'best_checkpoint_path': '',
+        'last_checkpoint_path': '',
+        'best_train_loss': float(best_train_loss),
+        'best_val_loss': float(best_val_loss),
+        'iter_num': int(iter_num),
+        'learning_rate': float(learning_rate),
+        'metric_mode': experiment_metric_mode,
+        'wall_clock_hours': float(elapsed_hours),
+        'forward_backward_hours': float(elapsed_hours),
+        'forward_hours': float(forward_seconds / 3600.0),
+        'backward_hours': float(backward_seconds / 3600.0),
+        'elapsed_wall_clock_hours': float((time.time() - train_start_time) / 3600.0),
+        'termination_reason': termination_reason,
+    }
+    with open(experiment_summary_path, 'w', encoding='utf-8') as f:
+        json.dump(summary, f, indent=2, sort_keys=True)
+
+
+def prune_requested():
+    return bool(prune_signal_path) and os.path.exists(prune_signal_path)
+
+
+def training_clock_now():
+    if device_type == 'cuda':
+        torch.cuda.synchronize(device)
+    return time.time()
 
 X, Y = get_batch('train')
+train_start_time = time.time()
+forward_backward_seconds = 0.0
+forward_seconds = 0.0
+backward_seconds = 0.0
 t0 = time.time()
 local_iter_num = 0
 raw_model = model.module if ddp else model
 running_mfu = -1.0
+termination_reason = 'max_iters_reached'
 while True:
     lr_mult = get_lr(iter_num) if decay_lr else learning_rate
     for group_idx, (param_group, base_lr) in enumerate(zip(optimizer.param_groups, base_group_lrs)):
@@ -326,20 +384,31 @@ while True:
         param_group['lr'] = base_lr * lr_mult
 
     if iter_num % linesearch_interval == 0 or (warmup_iters > 0 and iter_num <= warmup_iters and iter_num % warmup_iters == 0):
-        fixed_batches = [get_batch('train') for _ in range(linesearch_accum_steps)]
+        fixed_batches = [get_batch('train', to_device=False) for _ in range(linesearch_accum_steps)]
 
         def make_closure():
             def line_search_closure(require_grad=False):
                 device_curr = next(model.parameters()).device
                 total_loss = torch.zeros((), device=device_curr)
-                for x_ls, y_ls in fixed_batches:
+                sync_last_micro_step = len(fixed_batches) - 1
+                for micro_step, (x_ls, y_ls) in enumerate(fixed_batches):
+                    if device_type == 'cuda':
+                        x_ls = x_ls.pin_memory().to(device_curr, non_blocking=True)
+                        y_ls = y_ls.pin_memory().to(device_curr, non_blocking=True)
+                    else:
+                        x_ls = x_ls.to(device_curr)
+                        y_ls = y_ls.to(device_curr)
+                    if ddp and require_grad:
+                        model.require_backward_grad_sync = (micro_step == sync_last_micro_step)
                     with ctx:
                         _, loss_ls = model(x_ls, y_ls)
-                    total_loss += loss_ls
+                    total_loss += loss_ls.detach()
                     if require_grad:
                         (loss_ls / (linesearch_accum_steps + 1)).backward()
                         if grad_clip != 0.0:
                             torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
+                if ddp and require_grad:
+                    model.require_backward_grad_sync = True
                 avg_loss = total_loss / (linesearch_accum_steps + 1)
                 return avg_loss.item()
             return line_search_closure
@@ -358,34 +427,43 @@ while True:
         start_lr=muon_lr,
     )
 
-    if iter_num % eval_interval == 0 and master_process:
-        losses = estimate_loss()
-        print(f"step {iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
-        if wandb_log:
-            wandb.log({
-                "iter": iter_num,
-                "train/loss": losses['train'],
-                "val/loss": losses['val'],
-                "lr_mult": lr_mult,
-                "head_lr": optimizer.param_groups[0]['lr'],
-                "embed_lr": optimizer.param_groups[1]['lr'],
-                "scalar_lr": optimizer.param_groups[2]['lr'],
-                "muon_lr": optimizer.param_groups[muon_group_idx]['lr'],
-                "mfu": running_mfu * 100,
-            })
-        if losses['val'] < best_val_loss or always_save_checkpoint:
-            best_val_loss = losses['val']
+    if iter_num % eval_interval == 0:
+        should_terminate = False
+        if master_process:
+            losses = estimate_loss()
+            print(f"step {iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
+            best_train_loss = min(best_train_loss, losses['train'].item())
+            if losses['val'] < best_val_loss or always_save_checkpoint:
+                best_val_loss = losses['val']
+            if prune_requested():
+                termination_reason = 'pruned'
+                should_terminate = True
+            if should_stop_at_eval_boundary():
+                termination_reason = 'eval_budget_boundary_reached'
+                should_terminate = True
+        if ddp:
+            termination_flag = torch.tensor([int(should_terminate)], device=device)
+            torch.distributed.broadcast(termination_flag, src=0)
+            should_terminate = bool(termination_flag.item())
+        if should_terminate:
+            break
     if iter_num == 0 and eval_only:
+        termination_reason = 'eval_only'
         break
 
     for micro_step in range(gradient_accumulation_steps):
         if ddp:
             model.require_backward_grad_sync = (micro_step == gradient_accumulation_steps - 1)
+        forward_start_time = training_clock_now()
         with ctx:
             logits, loss = model(X, Y)
             loss = loss / gradient_accumulation_steps
+        forward_seconds += training_clock_now() - forward_start_time
         X, Y = get_batch('train')
+        backward_start_time = training_clock_now()
         scaler.scale(loss).backward()
+        backward_seconds += training_clock_now() - backward_start_time
+    forward_backward_seconds = forward_seconds + backward_seconds
 
     if grad_clip != 0.0:
         scaler.unscale_(optimizer)
@@ -411,7 +489,20 @@ while True:
     local_iter_num += 1
 
     if iter_num > max_iters:
+        termination_reason = 'max_iters_reached'
         break
+    if max_running_time_hours > 0:
+        training_hours = forward_backward_seconds / 3600.0
+        if training_hours >= max_running_time_hours:
+            termination_reason = 'time_limit_reached'
+            break
 
+write_experiment_summary(
+    termination_reason=termination_reason,
+    elapsed_hours=forward_backward_seconds / 3600.0,
+    train_start_time=train_start_time,
+    forward_seconds=forward_seconds,
+    backward_seconds=backward_seconds,
+)
 if ddp:
     destroy_process_group()

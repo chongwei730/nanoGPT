@@ -3,10 +3,10 @@
 #SBATCH --time=48:00:00
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
-#SBATCH --mem=256G
-#SBATCH --account=jinzn
-#SBATCH --gres=gpu:4
-#SBATCH -p a100-4,a100-8,apollo_agate
+#SBATCH --mem=128G
+#SBATCH --account=bgop-delta-gpu
+#SBATCH --gres=gpu:4 
+#SBATCH -p gpuA100x4
 #SBATCH --output=exp_log/gpt770m_linesearch_%A_%a.out
 #SBATCH --error=exp_log/gpt770m_linesearch_%A_%a.err
 
@@ -15,7 +15,7 @@ set -euo pipefail
 mkdir -p exp_log/slurm
 cd ../..
 
-RUN_ROOT="experiment_runs/gpt770m_line_search_stage2"
+RUN_ROOT="/work/nvme/bgop/cchen47/gpt770m_line_search_stage2"
 
 python run_linesearch_stage2.py \
   --run-root "$RUN_ROOT" \
@@ -24,5 +24,4 @@ python run_linesearch_stage2.py \
   --nproc-per-node 4 \
   --experiment-name "gpt770m_line_search" \
   --trial-id "stage2_final" \
-  --learning-rate 1e-6 \
-  -- config/train_gpt2_770m_15b.py --learning_rate=1e-6
+  -- config/train_gpt2_770m_15b.py

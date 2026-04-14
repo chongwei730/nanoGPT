@@ -219,13 +219,13 @@ def build_command(
     max_running_time_hours=None,
     num_iterations_override=None,
     init_from="scratch",
+    stop_at_eval_boundary=False,
 ):
     experiment = config["experiment"]
     task = config["task"]
     checkpoint = config.get("checkpoint", {})
     fixed_args = config.get("fixed_args", {})
     launch = config.get("launch", {})
-    wandb_cfg = config.get("wandb", {})
     num_iterations_per_trial = int(
         task["num_iterations_per_trial"]
         if num_iterations_override is None
@@ -258,24 +258,9 @@ def build_command(
         cmd.append(f"--{key}={value}")
     for key, value in sampled_params.items():
         cmd.append(f"--{key}={value}")
-    if wandb_cfg.get("enabled", False):
-        project = wandb_cfg.get("project")
-        if not project:
-            raise ValueError("wandb.project must be set when wandb.enabled is true.")
-        run_name = wandb_cfg.get("run_name_prefix", experiment["name"])
-        cmd.extend(
-            [
-                "--wandb_log=True",
-                f"--wandb_project={project}",
-                f"--wandb_run_name={run_name}_{trial_id}",
-                f"--wandb_group={experiment['name']}",
-            ]
-        )
-
     cmd.extend(
         [
             f"--max_iters={num_iterations_per_trial}",
-            f"--lr_decay_iters={num_iterations_per_trial}",
             f"--out_dir={trial_dir}",
             f"--experiment_name={experiment['name']}",
             f"--trial_id={trial_id}",
@@ -284,6 +269,7 @@ def build_command(
             f"--save_last_checkpoint={checkpoint.get('save_last', False)}",
             f"--experiment_summary_path={summary_path}",
             f"--prune_signal_path={prune_signal_path}",
+            f"--stop_at_eval_boundary={stop_at_eval_boundary}",
         ]
     )
     if init_from != "scratch":
@@ -296,6 +282,54 @@ def read_summary(summary_path):
         return None
     with open(summary_path, "r", encoding="utf-8") as f:
         return json.load(f)
+
+
+def extract_learning_rate_from_optimizer_state(optimizer_state):
+    if not isinstance(optimizer_state, dict):
+        return None
+    param_groups = optimizer_state.get("param_groups")
+    if not isinstance(param_groups, list) or not param_groups:
+        return None
+    first_group = param_groups[0]
+    if not isinstance(first_group, dict) or "lr" not in first_group:
+        return None
+    return float(first_group["lr"])
+
+
+def load_learning_rate_from_checkpoint(checkpoint_path):
+    if not checkpoint_path or not os.path.exists(checkpoint_path):
+        return None
+    checkpoint = torch.load(checkpoint_path, map_location="cpu")
+    return extract_learning_rate_from_optimizer_state(checkpoint.get("optimizer"))
+
+
+def load_learning_rate_from_run(summary=None, run_dir=""):
+    candidate_paths = []
+    if isinstance(summary, dict):
+        candidate_paths.extend(
+            [
+                summary.get("best_checkpoint_path", ""),
+                summary.get("last_checkpoint_path", ""),
+            ]
+        )
+    if run_dir:
+        candidate_paths.extend(
+            [
+                os.path.join(run_dir, "ckpt.pt"),
+                os.path.join(run_dir, "ckpt_last.pt"),
+            ]
+        )
+
+    seen = set()
+    for path in candidate_paths:
+        normalized = os.path.abspath(path) if path else ""
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        learning_rate = load_learning_rate_from_checkpoint(normalized)
+        if learning_rate is not None:
+            return learning_rate
+    return None
 
 
 def append_jsonl(path, payload):
@@ -321,16 +355,36 @@ def write_json(path, payload):
         json.dump(payload, f, indent=2, sort_keys=True)
 
 
-def make_record(stage, trial_id, learning_rate, step, train_loss, val_loss, wall_clock_hours):
-    return {
+def resolve_tuned_lr_param_name(hyperparameters):
+    if len(hyperparameters) != 1:
+        raise ValueError(
+            "Experiment protocol allows tuning exactly one learning-rate hyperparameter. "
+            f"Found hyperparameters: {sorted(hyperparameters.keys())}"
+        )
+    param_name = next(iter(hyperparameters.keys()))
+    if param_name != "learning_rate" and not param_name.endswith("_lr"):
+        raise ValueError(
+            "Experiment protocol allows tuning only a learning-rate hyperparameter. "
+            f"Found hyperparameter: {param_name!r}"
+        )
+    return param_name
+
+
+def make_record(stage, trial_id, param_name, param_value, step, train_loss, val_loss, wall_clock_hours):
+    record = {
         "stage": stage,
         "trial_id": trial_id,
-        "learning_rate": float(learning_rate),
         "step": int(step),
         "train_loss": float(train_loss),
         "val_loss": float(val_loss),
         "wall_clock_hours": float(wall_clock_hours),
     }
+    if param_name is not None:
+        record["hyperparameter_name"] = param_name
+    if param_value is not None:
+        record["hyperparameter_value"] = float(param_value)
+        record["learning_rate"] = float(param_value)
+    return record
 
 
 def stream_process(command, log_path, record_paths=None, record_context=None, trial=None, prune_signal_path=""):
@@ -365,7 +419,8 @@ def stream_process(command, log_path, record_paths=None, record_context=None, tr
                 record = make_record(
                     stage=record_stage,
                     trial_id=record_context["trial_id"],
-                    learning_rate=record_context["learning_rate"],
+                    param_name=record_context.get("hyperparameter_name"),
+                    param_value=record_context.get("hyperparameter_value"),
                     step=step,
                     train_loss=train_loss,
                     val_loss=val_loss,
@@ -413,11 +468,7 @@ def main():
     )
 
     hyperparameters = config["hyperparameters"]
-    if set(hyperparameters.keys()) != {"learning_rate"}:
-        raise ValueError(
-            "Experiment protocol allows tuning only learning_rate. "
-            f"Found hyperparameters: {sorted(hyperparameters.keys())}"
-        )
+    tuned_param_name = resolve_tuned_lr_param_name(hyperparameters)
 
     if args.max_running_time_per_trial_hours is not None:
         config["task"]["max_running_time_per_trial_hours"] = float(args.max_running_time_per_trial_hours)
@@ -490,7 +541,8 @@ def main():
             record_context={
                 "stage": "stage1",
                 "trial_id": trial_id,
-                "learning_rate": sampled_params["learning_rate"],
+                "hyperparameter_name": tuned_param_name,
+                "hyperparameter_value": sampled_params[tuned_param_name],
             },
             trial=trial,
             prune_signal_path=prune_signal_path,
@@ -561,11 +613,17 @@ def main():
         "target_dataset": experiment["target_dataset"],
         "target_model_size": experiment["target_model_size"],
         "selection_metric": task["train_metric"],
+        "tuned_hyperparameter_name": tuned_param_name,
         "best_trial_number": result_trial.number if result_trial is not None else None,
         "best_params": result_trial.params if result_trial is not None else None,
+        "best_hyperparameter_value": (
+            float(result_trial.params[tuned_param_name])
+            if result_trial is not None and tuned_param_name in result_trial.params
+            else None
+        ),
         "best_learning_rate": (
-            float(result_trial.params["learning_rate"])
-            if result_trial is not None and "learning_rate" in result_trial.params
+            float(result_trial.params[tuned_param_name])
+            if result_trial is not None and tuned_param_name in result_trial.params
             else None
         ),
         "best_value": result_trial.value if result_trial is not None else None,
@@ -607,10 +665,16 @@ def main():
             "max_running_time_per_trial_hours": float(task["max_running_time_per_trial_hours"]),
             "max_study_time_hours": float(max_study_time_hours),
             "selection_metric": task["train_metric"],
+            "tuned_hyperparameter_name": tuned_param_name,
             "best_params": result_trial.params if result_trial is not None else None,
+            "best_hyperparameter_value": (
+                float(result_trial.params[tuned_param_name])
+                if result_trial is not None and tuned_param_name in result_trial.params
+                else None
+            ),
             "best_learning_rate": (
-                float(result_trial.params["learning_rate"])
-                if result_trial is not None and "learning_rate" in result_trial.params
+                float(result_trial.params[tuned_param_name])
+                if result_trial is not None and tuned_param_name in result_trial.params
                 else None
             ),
             "best_trial_number": result_trial.number if result_trial is not None else None,

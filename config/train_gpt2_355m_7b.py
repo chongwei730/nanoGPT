@@ -1,7 +1,5 @@
 # config for training GPT-2 355M on OpenWebText for about 7B tokens on 4 GPUs
 
-wandb_run_name = 'gpt2-355M-7B'
-
 # 36 * 14 * 1024 = 516,096 tokens / iter
 batch_size = 14
 block_size = 1024

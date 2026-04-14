@@ -27,6 +27,12 @@ def parse_args():
         default=None,
         help="Optional initial number of trials for serial successive halving. Rung count is inferred automatically.",
     )
+    parser.add_argument(
+        "--reduction-factor",
+        type=int,
+        default=4,
+        help="Successive halving reduction factor. Defaults to 4.",
+    )
     return parser.parse_args()
 
 
@@ -296,6 +302,11 @@ def load_or_initialize_controller_state(run_root, args, config, num_rungs, rung_
                 f"Initial num_trials mismatch for resumed run: current={initial_trial_count} "
                 f"saved={state['initial_trial_count']}"
             )
+        if int(reduction_factor) != int(state["reduction_factor"]):
+            raise ValueError(
+                f"Reduction factor mismatch for resumed run: current={reduction_factor} "
+                f"saved={state['reduction_factor']}"
+            )
         print(
             f"[halving] resuming run from {run_root}: "
             f"next_rung_index={state['next_rung_index']} "
@@ -326,6 +337,7 @@ def load_or_initialize_controller_state(run_root, args, config, num_rungs, rung_
 def run_trial_rung(config, rung_index, target_iters, trial_state, rung_root, all_records_path):
     summary_path = trial_state["summary_path"]
     prune_signal_path = trial_state["prune_signal_path"]
+    tuned_param_name = run_optuna_experiment.resolve_tuned_lr_param_name(config["hyperparameters"])
     if os.path.exists(prune_signal_path):
         os.remove(prune_signal_path)
 
@@ -339,6 +351,7 @@ def run_trial_rung(config, rung_index, target_iters, trial_state, rung_root, all
         prune_signal_path=prune_signal_path,
         num_iterations_override=target_iters,
         init_from=init_from,
+        stop_at_eval_boundary=True,
     )
 
     returncode, _ = run_optuna_experiment.stream_process(
@@ -348,7 +361,8 @@ def run_trial_rung(config, rung_index, target_iters, trial_state, rung_root, all
         record_context={
             "phase": "serial_successive_halving",
             "trial_id": trial_state["trial_id"],
-            "learning_rate": trial_state["params"]["learning_rate"],
+            "hyperparameter_name": tuned_param_name,
+            "hyperparameter_value": trial_state["params"][tuned_param_name],
         },
         trial=None,
         prune_signal_path=prune_signal_path,
@@ -441,6 +455,7 @@ def write_rung_result(
         raise RuntimeError(
             f"Could not read selected trial summary from {selected_paths['summary_path']!r}."
         )
+    tuned_param_name = run_optuna_experiment.resolve_tuned_lr_param_name(config["hyperparameters"])
 
     rung_result = {
         "experiment_name": experiment["name"],
@@ -460,7 +475,9 @@ def write_rung_result(
         "selection_metric": task["train_metric"],
         "selected_trial_number": int(selected_trial["trial_number"]),
         "best_params": selected_params,
-        "best_learning_rate": float(selected_params["learning_rate"]),
+        "tuned_hyperparameter_name": tuned_param_name,
+        "best_hyperparameter_value": float(selected_params[tuned_param_name]),
+        "best_learning_rate": float(selected_params[tuned_param_name]),
         "best_value": selected_record["train_objective_value"],
         "best_train_value": selected_record["train_objective_value"],
         "best_test_value": selected_record["test_objective_value"],
@@ -503,13 +520,9 @@ def main():
     experiment = config["experiment"]
     task = config["task"]
     hyperparameters = config["hyperparameters"]
-    reduction_factor = 4
+    reduction_factor = int(args.reduction_factor)
 
-    if set(hyperparameters.keys()) != {"learning_rate"}:
-        raise ValueError(
-            "Experiment protocol allows tuning only learning_rate. "
-            f"Found hyperparameters: {sorted(hyperparameters.keys())}"
-        )
+    run_optuna_experiment.resolve_tuned_lr_param_name(hyperparameters)
 
     if args.run_root:
         run_root = ensure_dir(args.run_root)

@@ -25,7 +25,7 @@ def parse_args():
     )
     parser.add_argument(
         "--run-root",
-        default="experiment_runs/gpt124m_line_search_stage2",
+        default="/work/nvme/bgop/cchen47/experiment_runs/gpt124m_line_search_stage2",
         help="Root directory for stage2 outputs.",
     )
     parser.add_argument(
@@ -84,12 +84,6 @@ def parse_args():
         help="Optional config path to record in stage2_result.json.",
     )
     parser.add_argument(
-        "--learning-rate",
-        type=float,
-        default=None,
-        help="Learning rate to record in records.jsonl.",
-    )
-    parser.add_argument(
         "--save-last-checkpoint",
         type=parse_bool,
         default=False,
@@ -108,13 +102,28 @@ def ensure_dir(path):
     return path
 
 
-def parse_learning_rate_from_args(train_args):
-    for idx, arg in enumerate(train_args):
-        if arg.startswith("--learning_rate="):
-            return float(arg.split("=", 1)[1])
-        if arg == "--learning_rate" and idx + 1 < len(train_args):
-            return float(train_args[idx + 1])
-    return None
+def validate_linesearch_train_args(train_args):
+    forbidden_prefixes = (
+        "--learning_rate=",
+        "--muon_lr=",
+        "--hyperparameter-name=",
+        "--hyperparameter-value=",
+        "--learning-rate=",
+    )
+    forbidden_flags = {
+        "--learning_rate",
+        "--muon_lr",
+        "--hyperparameter-name",
+        "--hyperparameter-value",
+        "--learning-rate",
+    }
+    normalized_args = train_args[1:] if train_args and train_args[0] == "--" else train_args
+    for arg in normalized_args:
+        if arg in forbidden_flags or arg.startswith(forbidden_prefixes):
+            raise ValueError(
+                "Line-search runs must not accept externally supplied learning-rate "
+                f"hyperparameters, but found forbidden argument: {arg}"
+            )
 
 
 def build_command(
@@ -179,12 +188,8 @@ def main():
     prune_signal_path = os.path.join(final_dir, "PRUNE")
     if os.path.exists(prune_signal_path):
         os.remove(prune_signal_path)
-
-    learning_rate = args.learning_rate
-    if learning_rate is None:
-        learning_rate = parse_learning_rate_from_args(args.train_args)
-    if learning_rate is None:
-        learning_rate = 0.0
+    validate_linesearch_train_args(args.train_args)
+    open(records_path, "a", encoding="utf-8").close()
 
     command = build_command(
         train_script=args.train_script,
@@ -208,13 +213,16 @@ def main():
         record_context={
             "stage": "stage2",
             "trial_id": args.trial_id,
-            "learning_rate": learning_rate,
         },
     )
 
     summary = run_optuna_experiment.read_summary(summary_path)
     if summary is None:
         raise RuntimeError(f"Line-search run did not produce a summary file at {summary_path}.")
+    loaded_learning_rate = run_optuna_experiment.load_learning_rate_from_run(
+        summary=summary,
+        run_dir=final_dir,
+    )
 
     stage2_result = {
         "schema_version": 1,
@@ -228,7 +236,7 @@ def main():
         "summary_path": os.path.abspath(summary_path),
         "log_path": os.path.abspath(log_path),
         "records_path": os.path.abspath(records_path),
-        "loaded_learning_rate": float(learning_rate),
+        "loaded_learning_rate": loaded_learning_rate,
         "max_study_time_hours": float(args.max_study_time_hours),
         "max_running_time_per_trial_hours": float(args.max_running_time_hours),
         "returncode": int(returncode),

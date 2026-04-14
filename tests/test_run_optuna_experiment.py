@@ -15,12 +15,12 @@ import run_optuna_experiment
 
 
 class RunOptunaExperimentIntegrationTest(unittest.TestCase):
-    def test_tiny_gpu_experiment_runs_end_to_end(self):
+    def test_tiny_gpu_/work/nvme/bgop/cchen47_end_to_end(self):
         if not torch.cuda.is_available():
             self.skipTest("CUDA is required for the real torchrun integration path.")
 
         repo_root = Path(__file__).resolve().parents[1]
-        output_root = repo_root / "experiment_runs"
+        output_root = repo_root / "/work/nvme/bgop/cchen47"
 
         with tempfile.TemporaryDirectory(dir="/tmp") as tmpdir_str:
             tmpdir = Path(tmpdir_str)
@@ -50,7 +50,7 @@ class RunOptunaExperimentIntegrationTest(unittest.TestCase):
 
             dataset_override = os.path.relpath(
                 dataset_dir,
-                "/scratch.global/chen8596/nanogpt_data",
+                "/work/nvme/bgop/cchen47/nanogpt_data",
             )
             config_path = tmpdir / "tiny_optuna.yaml"
             config = {
@@ -203,6 +203,53 @@ class RunOptunaExperimentIntegrationTest(unittest.TestCase):
             ]
             self.assertTrue(all_records)
             self.assertEqual({"stage1"}, {record["stage"] for record in all_records})
+
+
+class LearningRateLoadTest(unittest.TestCase):
+    def test_load_learning_rate_from_checkpoint_uses_optimizer_param_group(self):
+        with tempfile.TemporaryDirectory(dir="/tmp") as tmpdir_str:
+            checkpoint_path = Path(tmpdir_str) / "ckpt.pt"
+            torch.save(
+                {
+                    "optimizer": {
+                        "param_groups": [
+                            {"lr": 1.234e-4},
+                        ]
+                    }
+                },
+                checkpoint_path,
+            )
+
+            loaded = run_optuna_experiment.load_learning_rate_from_checkpoint(str(checkpoint_path))
+
+            self.assertEqual(1.234e-4, loaded)
+
+    def test_load_learning_rate_from_run_prefers_checkpoint_over_summary_value(self):
+        with tempfile.TemporaryDirectory(dir="/tmp") as tmpdir_str:
+            run_dir = Path(tmpdir_str)
+            checkpoint_path = run_dir / "ckpt_last.pt"
+            torch.save(
+                {
+                    "optimizer": {
+                        "param_groups": [
+                            {"lr": 7.89e-5},
+                        ]
+                    }
+                },
+                checkpoint_path,
+            )
+            summary = {
+                "best_checkpoint_path": "",
+                "last_checkpoint_path": str(checkpoint_path),
+                "learning_rate": 1e-6,
+            }
+
+            loaded = run_optuna_experiment.load_learning_rate_from_run(
+                summary=summary,
+                run_dir=str(run_dir),
+            )
+
+            self.assertEqual(7.89e-5, loaded)
 
 
 if __name__ == "__main__":

@@ -94,6 +94,12 @@ def run_stage2(stage1_result_path, config_override):
     write_json(summary_path, promoted_summary)
     copy_if_exists(selected_records_path, records_path)
     copy_if_exists(selected_log_path, log_path)
+    loaded_learning_rate = run_optuna_experiment.load_learning_rate_from_run(
+        summary=summary,
+        run_dir=stage1_result.get("selected_trial_dir", ""),
+    )
+    if loaded_learning_rate is None:
+        loaded_learning_rate = float(best_params["learning_rate"])
 
     stage2_result = {
         "schema_version": 1,
@@ -107,7 +113,7 @@ def run_stage2(stage1_result_path, config_override):
         "summary_path": os.path.abspath(summary_path),
         "log_path": os.path.abspath(log_path),
         "records_path": os.path.abspath(records_path),
-        "loaded_learning_rate": float(best_params["learning_rate"]),
+        "loaded_learning_rate": loaded_learning_rate,
         "num_iterations_per_trial": int(stage1_result["num_iterations_per_trial"]),
         "max_study_time_hours": float(stage1_result["max_study_time_hours"]),
         "max_running_time_per_trial_hours": float(stage1_result["max_running_time_per_trial_hours"]),

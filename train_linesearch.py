@@ -37,17 +37,13 @@ from model import GPTConfig, GPT
 # -----------------------------------------------------------------------------
 # default config values designed to train a gpt2 (124M) on OpenWebText
 # I/O
-out_dir = '/scratch.global/chen8596/out'
+out_dir = '/work/nvme/bgop/cchen47/out'
 eval_interval = 200
 log_interval = 1
 eval_iters = 200
 eval_only = False # if True, script exits right after the first eval
 always_save_checkpoint = True # if True, always save a checkpoint after each eval
 init_from = 'scratch' # 'scratch' or 'resume' or 'gpt2*'
-# wandb logging
-wandb_log = False # disabled by default
-wandb_project = 'owt'
-wandb_run_name = 'gpt2' # 'run' + str(time.time())
 # data
 dataset = 'openwebtext'
 gradient_accumulation_steps = 4 * 4 # used to simulate larger batch sizes
@@ -99,6 +95,7 @@ max_running_time_hours = 0.0
 save_last_checkpoint = True
 experiment_summary_path = ''
 prune_signal_path = ''
+stop_at_eval_boundary = False
 # -----------------------------------------------------------------------------
 config_keys = [k for k,v in globals().items() if not k.startswith('_') and isinstance(v, (int, float, bool, str))]
 exec(open('configurator.py').read()) # overrides from command line or config file
@@ -145,7 +142,7 @@ ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torc
 ctx = nullcontext() if device_type == 'cpu' else torch.amp.autocast(device_type=device_type, dtype=ptdtype)
 
 # poor man's data loader
-data_dir = os.path.join('/scratch.global/chen8596/nanogpt_data', dataset)
+data_dir = os.path.join('/work/nvme/bgop/cchen47/nanogpt_data', dataset)
 def load_token_data(filename):
     path = os.path.join(data_dir, filename)
     if data_backend == 'memmap':
@@ -161,12 +158,14 @@ val_data = load_token_data('val.bin')
 if master_process:
     print(f"using data backend: {data_backend}")
 
-def get_batch_linesearch(split, mode=False):
+def get_batch_linesearch(split, to_device=True):
     data = train_data if split == 'train' else val_data
     ix = torch.randint(0, len(data) - block_size, (batch_size,)).numpy()
     offsets = np.arange(block_size)
     x = torch.from_numpy(data[ix[:, None] + offsets]).long()
     y = torch.from_numpy(data[ix[:, None] + offsets + 1]).long()
+    if not to_device:
+        return x, y
     if device_type == 'cuda':
         x, y = x.pin_memory().to(device, non_blocking=True), y.pin_memory().to(device, non_blocking=True)
     else:
@@ -323,13 +322,14 @@ def training_clock_now():
         torch.cuda.synchronize(device)
     return time.time()
 
+
+def should_stop_at_eval_boundary():
+    if not stop_at_eval_boundary:
+        return False
+    return (iter_num + eval_interval) > max_iters
+
 # learning rate decay scheduler (cosine with warmup)
 
-
-# logging
-if wandb_log and master_process:
-    import wandb
-    wandb.init(project=wandb_project, name=wandb_run_name, config=config)
 
 # training loop
 X, Y = get_batch_linesearch('train') # fetch the very first batch
@@ -349,33 +349,33 @@ while True:
         print("LINESEARCH!!!")
         fixed_batches = []
         for i in range(linesearch_accum_steps):
-            X_ls, Y_ls = get_batch_linesearch("train")
+            X_ls, Y_ls = get_batch_linesearch("train", to_device=False)
             fixed_batches.append((X_ls, Y_ls))
 
         def make_closure():
             def line_search_closure(require_grad=False):
-                # optimizer.zero_grad()
                 device = next(model.parameters()).device
                 total_loss = torch.zeros((), device=device)
-                for x_ls, y_ls in fixed_batches:
-                    # x_ls = x_ls.to(device)
-                    # y_ls = y_ls.to(device)
-                    outputs_ls, loss_ls = model(x_ls, y_ls)
+                sync_last_micro_step = len(fixed_batches) - 1
+                for micro_step, (x_ls, y_ls) in enumerate(fixed_batches):
+                    if device_type == 'cuda':
+                        x_ls = x_ls.pin_memory().to(device, non_blocking=True)
+                        y_ls = y_ls.pin_memory().to(device, non_blocking=True)
+                    else:
+                        x_ls = x_ls.to(device)
+                        y_ls = y_ls.to(device)
+                    if ddp and require_grad:
+                        # Match the main training loop and only synchronize DDP
+                        # gradients on the last accumulation step.
+                        model.require_backward_grad_sync = (micro_step == sync_last_micro_step)
+                    with ctx:
+                        _, loss_ls = model(x_ls, y_ls)
 
-                    total_loss += loss_ls
+                    # Keep only the scalar value so we do not retain every
+                    # micro-batch autograd graph until the closure returns.
+                    total_loss += loss_ls.detach()
 
                     if require_grad:
-                    #     # capture gradient vector before this micro-batch
-                    #     vecs_before = []
-                    #     for p in model.parameters():
-                    #         if p.requires_grad:
-                    #             if p.grad is None:
-                    #                 vecs_before.append(p.new_zeros(p.numel()))
-                    #             else:
-                    #                 vecs_before.append(p.grad.detach().view(-1).clone())
-                    #     g_before = torch.cat(vecs_before) if len(vecs_before) > 0 else torch.tensor([], device=device)
-
-                    #     # backward for this micro-batch (with accumulation scaling)
                         (loss_ls / (linesearch_accum_steps + 1)).backward()
 
                         # Clip gradients produced by the closure to keep them consistent
@@ -383,36 +383,8 @@ while True:
                         # gradient norms from affecting line-search behavior.
                         if grad_clip != 0:
                             torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
-
-                    #     # capture gradient vector after this micro-batch
-                    #     vecs_after = []
-                    #     for p in model.parameters():
-                    #         if p.requires_grad:
-                    #             if p.grad is None:
-                    #                 vecs_after.append(p.new_zeros(p.numel()))
-                    #             else:
-                    #                 vecs_after.append(p.grad.detach().view(-1).clone())
-                    #     g_after = torch.cat(vecs_after) if len(vecs_after) > 0 else torch.tensor([], device=device)
-
-                    #     # compute increment and angle
-                    #     g_increment = g_after - g_before
-                    #     norm_b = torch.norm(g_before) if g_before.numel() > 0 else torch.tensor(0.0, device=device)
-                    #     norm_i = torch.norm(g_increment) if g_increment.numel() > 0 else torch.tensor(0.0, device=device)
-                    #     if norm_b.item() > 1e-12 and norm_i.item() > 1e-12:
-                    #         cos = (g_before @ g_increment) / (norm_b * norm_i + 1e-12)
-                    #         cos = cos.clamp(-1.0, 1.0)
-                    #         angle_deg = (torch.acos(cos) * 180.0 / torch.pi).item()
-                    #         cos_val = float(cos.item())
-                    #     else:
-                    #         angle_deg = 0.0
-                    #         cos_val = 0.0
-
-                    #     if master_process:
-                    #         logging.warning(
-                    #             f"[iter {iter_num}] gradient angle (deg) = {angle_deg:.2f}, "
-                    #             f"cos={cos_val:.4f}, ||before||={norm_b.item():.3e}, "
-                    #             f"||increm||={norm_i.item():.3e}"
-                    #         )
+                if ddp and require_grad:
+                    model.require_backward_grad_sync = True
 
                 avg_loss = total_loss / (linesearch_accum_steps + 1)
                 return avg_loss.item()
@@ -439,20 +411,15 @@ while True:
             losses = estimate_loss()
             print(f"step {iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
             best_train_loss = min(best_train_loss, losses['train'].item())
-            if wandb_log:
-                wandb.log({
-                    "iter": iter_num,
-                    "train/loss": losses['train'],
-                    "val/loss": losses['val'],
-                    "lr": lr,
-                    "mfu": running_mfu*100, # convert to percentage
-                })
             if losses['val'] < best_val_loss or always_save_checkpoint:
                 best_val_loss = losses['val']
                 if iter_num > 0:
                     save_checkpoint(os.path.join(out_dir, 'ckpt.pt'))
             if prune_requested():
                 termination_reason = 'pruned'
+                should_terminate = True
+            elif should_stop_at_eval_boundary():
+                termination_reason = 'eval_budget_boundary_reached'
                 should_terminate = True
         if ddp:
             termination_flag = torch.tensor([int(should_terminate)], device=device)

@@ -34,22 +34,17 @@ from model import GPTConfig, GPT
 # -----------------------------------------------------------------------------
 # default config values designed to train a gpt2 (124M) on OpenWebText
 # I/O
-out_dir = '/scratch.global/chen8596/out'
+out_dir = '/work/nvme/bgop/cchen47/out'
 eval_interval = 2000
 log_interval = 1
 eval_iters = 200
 eval_only = False # if True, script exits right after the first eval
 always_save_checkpoint = True # if True, always save a checkpoint after each eval
 init_from = 'scratch' # 'scratch' or 'resume' or 'gpt2*'
-# wandb logging
-wandb_log = False # disabled by default
-wandb_project = 'owt'
-wandb_run_name = 'gpt2' # 'run' + str(time.time())
-wandb_group = ''
 # data
 dataset = 'openwebtext'
-gradient_accumulation_steps = 4*2 # used to simulate larger batch sizes
-batch_size = 60 # if gradient_accumulation_steps > 1, this is the micro-batch size
+gradient_accumulation_steps = 4*4 # used to simulate larger batch sizes
+batch_size = 30 # if gradient_accumulation_steps > 1, this is the micro-batch size
 block_size = 1024
 data_backend = 'memmap' # 'memmap' keeps files mmaped, 'ram' loads them into process memory
 # model
@@ -89,6 +84,7 @@ max_running_time_hours = 0.0
 save_last_checkpoint = True
 experiment_summary_path = ''
 prune_signal_path = ''
+stop_at_eval_boundary = False
 # -----------------------------------------------------------------------------
 config_keys = [k for k,v in globals().items() if not k.startswith('_') and isinstance(v, (int, float, bool, str))]
 exec(open('configurator.py').read()) # overrides from command line or config file
@@ -129,7 +125,7 @@ ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torc
 ctx = nullcontext() if device_type == 'cpu' else torch.amp.autocast(device_type=device_type, dtype=ptdtype)
 
 # poor man's data loader
-data_dir = os.path.join('/scratch.global/chen8596/nanogpt_data', dataset)
+data_dir = os.path.join('/work/nvme/bgop/cchen47/nanogpt_data', dataset)
 def load_token_data(filename):
     path = os.path.join(data_dir, filename)
     if data_backend == 'memmap':
@@ -279,24 +275,6 @@ def get_lr(it):
     coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio)) # coeff ranges 0..1
     return min_lr + coeff * (learning_rate - min_lr)
 
-# logging
-wandb = None
-if wandb_log and master_process:
-    try:
-        import wandb
-    except ImportError as exc:
-        raise SystemExit(
-            "wandb logging was requested, but the `wandb` package is not installed."
-        ) from exc
-    wandb_init_kwargs = {
-        "project": wandb_project,
-        "name": wandb_run_name,
-        "config": config,
-    }
-    if wandb_group:
-        wandb_init_kwargs["group"] = wandb_group
-    wandb.init(**wandb_init_kwargs)
-
 def save_checkpoint(path):
     checkpoint = {
         'model': raw_model.state_dict(),
@@ -340,6 +318,12 @@ def write_experiment_summary(
 def prune_requested():
     return bool(prune_signal_path) and os.path.exists(prune_signal_path)
 
+
+def should_stop_at_eval_boundary():
+    if not stop_at_eval_boundary:
+        return False
+    return (iter_num + eval_interval) > max_iters
+
 def training_clock_now():
     if device_type == 'cuda':
         torch.cuda.synchronize(device)
@@ -370,20 +354,15 @@ while True:
             losses = estimate_loss()
             print(f"step {iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
             best_train_loss = min(best_train_loss, losses['train'].item())
-            if wandb_log:
-                wandb.log({
-                    "iter": iter_num,
-                    "train/loss": losses['train'],
-                    "val/loss": losses['val'],
-                    "lr": lr,
-                    "mfu": running_mfu*100, # convert to percentage
-                })
             if losses['val'] < best_val_loss or always_save_checkpoint:
                 best_val_loss = losses['val']
                 if iter_num > 0:
                     save_checkpoint(os.path.join(out_dir, 'ckpt.pt'))
             if prune_requested():
                 termination_reason = 'pruned'
+                should_terminate = True
+            elif should_stop_at_eval_boundary():
+                termination_reason = 'eval_budget_boundary_reached'
                 should_terminate = True
         if ddp:
             termination_flag = torch.tensor([int(should_terminate)], device=device)
@@ -457,8 +436,5 @@ write_experiment_summary(
     termination_reason=termination_reason,
     elapsed_hours=forward_backward_seconds / 3600.0,
 )
-if wandb is not None and master_process:
-    wandb.finish()
-
 if ddp:
     destroy_process_group()

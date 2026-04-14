@@ -90,7 +90,6 @@ typing-inspection==0.4.2
 typing_extensions==4.15.0
 tzdata==2025.3
 urllib3==2.6.3
-wandb==0.25.1
 xxhash==3.6.0
 yarl==1.22.0
 zipp==3.23.0

@@ -1,0 +1,1 @@
+{"hyperparameter_name": "muon_lr", "hyperparameter_value": 0.05, "learning_rate": 0.05, "stage": "stage2", "step": 0, "train_loss": 10.9892, "trial_id": "stage2_final", "val_loss": 10.9904, "wall_clock_hours": 0.050313941968811886}

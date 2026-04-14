@@ -6,7 +6,7 @@ cd "$(dirname "$0")"
 PYTHON_BIN="${PYTHON_BIN:-python3}"
 NPROC_PER_NODE="${NPROC_PER_NODE:-4}"
 SMOKE_ROOT="${SMOKE_ROOT:-$(pwd)/experiment_runs_smoke/serial_halving_multigpu_smoke}"
-DATA_ROOT="${DATA_ROOT:-/data/nanogpt_data}"
+DATA_ROOT="${DATA_ROOT:-/work/nvme/bgop/cchen47/nanogpt_data}"
 DATASET_NAME="${DATASET_NAME:-tiny_openwebtext_serial_halving_smoke}"
 DATA_DIR="$DATA_ROOT/$DATASET_NAME"
 CONFIG_PATH="$SMOKE_ROOT/smoke_config.yaml"
@@ -118,7 +118,6 @@ launch:
 fixed_args:
   dataset: $DATASET_NAME
   compile: false
-  wandb_log: false
   eval_interval: 1
   eval_iters: 1
   log_interval: 1

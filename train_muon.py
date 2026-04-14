@@ -35,17 +35,13 @@ from muon import MuonWithAuxAdam, SingleDeviceMuonWithAuxAdam
 # -----------------------------------------------------------------------------
 # default config values designed to train a gpt2 (124M) on OpenWebText
 # I/O
-out_dir = '/scratch.global/chen8596/out'
+out_dir = '/work/nvme/bgop/cchen47/out'
 eval_interval = 2000
 log_interval = 1
 eval_iters = 200
 eval_only = False # if True, script exits right after the first eval
 always_save_checkpoint = True # if True, always save a checkpoint after each eval
 init_from = 'scratch' # 'scratch' or 'resume' or 'gpt2*'
-# wandb logging
-wandb_log = False # disabled by default
-wandb_project = 'owt'
-wandb_run_name = 'gpt2-muon' # 'run' + str(time.time())
 # data
 dataset = 'openwebtext'
 gradient_accumulation_steps = 5 * 8 # used to simulate larger batch sizes
@@ -95,6 +91,7 @@ max_running_time_hours = 0.0
 save_last_checkpoint = True
 experiment_summary_path = ''
 prune_signal_path = ''
+stop_at_eval_boundary = False
 # -----------------------------------------------------------------------------
 config_keys = [k for k,v in globals().items() if not k.startswith('_') and isinstance(v, (int, float, bool, str))]
 exec(open('configurator.py').read()) # overrides from command line or config file
@@ -139,7 +136,7 @@ ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torc
 ctx = nullcontext() if device_type == 'cpu' else torch.amp.autocast(device_type=device_type, dtype=ptdtype)
 
 # poor man's data loader
-data_dir = os.path.join('/scratch.global/chen8596/nanogpt_data', dataset)
+data_dir = os.path.join('/work/nvme/bgop/cchen47/nanogpt_data', dataset)
 def load_token_data(filename):
     path = os.path.join(data_dir, filename)
     if data_backend == 'memmap':
@@ -317,11 +314,6 @@ def get_lr(it):
     coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio)) # coeff ranges 0..1
     return min_lr + coeff * (learning_rate - min_lr)
 
-# logging
-if wandb_log and master_process:
-    import wandb
-    wandb.init(project=wandb_project, name=wandb_run_name, config=config)
-
 def save_checkpoint(path):
     return
 
@@ -353,6 +345,12 @@ def write_experiment_summary(
 def prune_requested():
     return bool(prune_signal_path) and os.path.exists(prune_signal_path)
 
+
+def should_stop_at_eval_boundary():
+    if not stop_at_eval_boundary:
+        return False
+    return (iter_num + eval_interval) > max_iters
+
 # training loop
 X, Y = get_batch('train') # fetch the very first batch
 train_start_time = time.time()
@@ -369,28 +367,27 @@ while True:
         param_group['lr'] = base_lr * lr_mult
 
     # evaluate the loss on train/val sets and write checkpoints
-    if iter_num % eval_interval == 0 and master_process:
-        losses = estimate_loss()
-        print(f"step {iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
-        best_train_loss = min(best_train_loss, losses['train'].item())
-        if wandb_log:
-            wandb.log({
-                "iter": iter_num,
-                "train/loss": losses['train'],
-                "val/loss": losses['val'],
-                "lr_mult": lr_mult,
-                "head_lr": optimizer.param_groups[0]['lr'],
-                "embed_lr": optimizer.param_groups[1]['lr'],
-                "scalar_lr": optimizer.param_groups[2]['lr'],
-                "muon_lr": optimizer.param_groups[3]['lr'],
-                "mfu": running_mfu*100, # convert to percentage
-            })
-        if losses['val'] < best_val_loss or always_save_checkpoint:
-            best_val_loss = losses['val']
-            if iter_num > 0:
-                save_checkpoint(os.path.join(out_dir, 'ckpt.pt'))
-        if prune_requested():
-            termination_reason = 'pruned'
+    if iter_num % eval_interval == 0:
+        should_terminate = False
+        if master_process:
+            losses = estimate_loss()
+            print(f"step {iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
+            best_train_loss = min(best_train_loss, losses['train'].item())
+            if losses['val'] < best_val_loss or always_save_checkpoint:
+                best_val_loss = losses['val']
+                if iter_num > 0:
+                    save_checkpoint(os.path.join(out_dir, 'ckpt.pt'))
+            if prune_requested():
+                termination_reason = 'pruned'
+                should_terminate = True
+            elif should_stop_at_eval_boundary():
+                termination_reason = 'eval_budget_boundary_reached'
+                should_terminate = True
+        if ddp:
+            termination_flag = torch.tensor([int(should_terminate)], device=device)
+            torch.distributed.broadcast(termination_flag, src=0)
+            should_terminate = bool(termination_flag.item())
+        if should_terminate:
             break
     if iter_num == 0 and eval_only:
         termination_reason = 'eval_only'

@@ -2,7 +2,7 @@ experiment:
   name: gpt124m_lr_search
   train_script: train.py
   train_config: config/train_gpt2.py
-  output_root: experiment_runs
+  output_root: /work/nvme/bgop/cchen47/experiment_runs
   target_family: GPT
   target_dataset: OpenWebText
   target_model_size: 124M
@@ -14,7 +14,6 @@ launch:
 fixed_args:
   dataset: openwebtext
   compile: false
-  wandb_log: false
   eval_interval: 200
   eval_iters: 20
   log_interval: 10
@@ -41,11 +40,6 @@ optuna:
     n_startup_trials: 1
     n_warmup_steps: 1
     interval_steps: 1
-
-wandb:
-  enabled: true
-  project: owt
-  run_name_prefix: gpt124m_lr_search
 
 checkpoint:
   save_last: true
