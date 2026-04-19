@@ -111,7 +111,7 @@
           "metadata": {
             "kind": "staged_search",
             "experiment_name": "gpt124m_lr_search",
-            "stage2_result_path": "/work/nvme/bgop/cchen47/gpt124m_lr_search_staged_3h/level_3h/stage2/stage2_result.json",
+            "stage2_result_path": "/scratch.global/chen8596/gpt124m_lr_search_staged_3h/level_3h/stage2/stage2_result.json",
             "stage1_summary_path": "experiment_runs/gpt124m_lr_search_staged_3h/level_3h/stage1/study_summary.json"
           }
         }

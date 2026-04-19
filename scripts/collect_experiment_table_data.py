@@ -13,7 +13,7 @@ def parse_args():
     )
     parser.add_argument(
         "--experiment-root",
-        default="/work/nvme/bgop/cchen47//work/nvme/bgop/cchen47",
+        default="/scratch.global/chen8596//scratch.global/chen8596",
         help="Root directory containing experiment outputs.",
     )
     parser.add_argument(

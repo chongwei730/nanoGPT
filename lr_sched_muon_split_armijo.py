@@ -586,9 +586,9 @@ class LineSearchScheduler():
                     d = self.rule(p)
 
 
-                    grad_sq += torch.sum(g * g).item()
-                    dir_sq += torch.sum(d * d).item()
-                    param_sq += torch.sum(p * p).item()
+                    # grad_sq += torch.sum(g * g).item()
+                    # dir_sq += torch.sum(d * d).item()
+                    # param_sq += torch.sum(p * p).item()
 
                     # ===== dot product =====
                     gd = torch.sum(g * d).item()
@@ -604,7 +604,7 @@ class LineSearchScheduler():
 
         grad_norm = grad_sq ** 0.5
         dir_norm = dir_sq ** 0.5
-        param_norm = param_sq ** 0.5
+        # param_norm = param_sq ** 0.5
 
 
         # cos_gd = dot_gd / (grad_norm * dir_norm + 1e-12)
@@ -616,23 +616,23 @@ class LineSearchScheduler():
 
 
  
-        print("\n========== Line Search Debug ==========")
-        print(f"loss (phi0): {phi0}")
-        print(f"derphi0: {derphi0}")
-        print(f"adam_const: {adam_const}")
+        # print("\n========== Line Search Debug ==========")
+        # print(f"loss (phi0): {phi0}")
+        # print(f"derphi0: {derphi0}")
+        # print(f"adam_const: {adam_const}")
 
-        print("\n--- Norms ---")
-        print(f"grad_norm: {grad_norm:.6f}")
-        print(f"dir_norm:  {dir_norm:.6f}")
-        print(f"param_norm:{param_norm:.6f}")
+        # print("\n--- Norms ---")
+        # print(f"grad_norm: {grad_norm:.6f}")
+        # print(f"dir_norm:  {dir_norm:.6f}")
+        # print(f"param_norm:{param_norm:.6f}")
 
 
 
-        self.test_update_restore_max_diff(alpha=alpha)
-        self.check_optimizer_step_vs_rule(
-            optimizer=self.optimizer,
-            rule_fn=self.rule,
-        )
+        # self.test_update_restore_max_diff(alpha=alpha)
+        # self.check_optimizer_step_vs_rule(
+        #     optimizer=self.optimizer,
+        #     rule_fn=self.rule,
+        # )
         
         if derphi0 > 0: 
             # self.clear_momentum()

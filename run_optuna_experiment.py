@@ -261,6 +261,7 @@ def build_command(
     cmd.extend(
         [
             f"--max_iters={num_iterations_per_trial}",
+            f"--lr_decay_iters={num_iterations_per_trial}",
             f"--out_dir={trial_dir}",
             f"--experiment_name={experiment['name']}",
             f"--trial_id={trial_id}",
@@ -475,14 +476,14 @@ def main():
     if args.num_iterations_per_trial is not None:
         config["task"]["num_iterations_per_trial"] = int(args.num_iterations_per_trial)
 
-    target_row = find_target_row(config)
-    validate_target_row(
-        config,
-        target_row,
-        validate_runtime=not args.skip_runtime_table_validation,
-    )
-
     experiment = config["experiment"]
+    if not experiment.get("skip_table_validation", False):
+        target_row = find_target_row(config)
+        validate_target_row(
+            config,
+            target_row,
+            validate_runtime=not args.skip_runtime_table_validation,
+        )
     task = config["task"]
     checkpoint = config.setdefault("checkpoint", {})
     checkpoint["save_last"] = False

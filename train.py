@@ -34,7 +34,7 @@ from model import GPTConfig, GPT
 # -----------------------------------------------------------------------------
 # default config values designed to train a gpt2 (124M) on OpenWebText
 # I/O
-out_dir = '/work/nvme/bgop/cchen47/out'
+out_dir = '/scratch.global/chen8596/out'
 eval_interval = 2000
 log_interval = 1
 eval_iters = 200
@@ -55,6 +55,7 @@ dropout = 0.0 # for pretraining 0 is good, for finetuning try 0.1+
 bias = False # do we use bias inside LayerNorm and Linear layers?
 # adamw optimizer
 learning_rate = 6e-4 # max learning rate
+optimizer_type = 'AdamW'
 max_iters = 5000 # total number of training iterations
 weight_decay = 1e-1
 beta1 = 0.9
@@ -125,7 +126,7 @@ ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torc
 ctx = nullcontext() if device_type == 'cpu' else torch.amp.autocast(device_type=device_type, dtype=ptdtype)
 
 # poor man's data loader
-data_dir = os.path.join('/work/nvme/bgop/cchen47/nanogpt_data', dataset)
+data_dir = os.path.join('/scratch.global/chen8596/nanogpt_data', dataset)
 def load_token_data(filename):
     path = os.path.join(data_dir, filename)
     if data_backend == 'memmap':
@@ -229,9 +230,17 @@ if master_process:
 scaler = torch.cuda.amp.GradScaler(enabled=(dtype == 'float16'))
 
 # optimizer
-optimizer = model.configure_optimizers(weight_decay, learning_rate, (beta1, beta2), device_type)
+optimizer = model.configure_optimizers(
+    weight_decay,
+    learning_rate,
+    (beta1, beta2),
+    device_type,
+    optimizer_type=optimizer_type,
+)
 if init_from == 'resume':
     optimizer.load_state_dict(checkpoint['optimizer'])
+if optimizer_type == 'AdamWScheduleFree':
+    optimizer.train()
 checkpoint = None # free up memory
 
 # compile the model
@@ -249,6 +258,8 @@ if ddp:
 def estimate_loss():
     out = {}
     eval_model = model.module if ddp else model
+    if optimizer_type == 'AdamWScheduleFree':
+        optimizer.eval()
     eval_model.eval()
     for split in ['train', 'val']:
         losses = torch.zeros(eval_iters)
@@ -259,6 +270,8 @@ def estimate_loss():
             losses[k] = loss.item()
         out[split] = losses.mean()
     eval_model.train()
+    if optimizer_type == 'AdamWScheduleFree':
+        optimizer.train()
     return out
 
 # learning rate decay scheduler (cosine with warmup)

@@ -33,6 +33,12 @@ def parse_args():
         default=4,
         help="Successive halving reduction factor. Defaults to 4.",
     )
+    parser.add_argument(
+        "--num-iterations-per-trial",
+        type=int,
+        default=None,
+        help="Optional override for task.num_iterations_per_trial and the corresponding training max_iters.",
+    )
     return parser.parse_args()
 
 
@@ -521,6 +527,14 @@ def main():
     task = config["task"]
     hyperparameters = config["hyperparameters"]
     reduction_factor = int(args.reduction_factor)
+
+    if args.num_iterations_per_trial is not None:
+        if int(args.num_iterations_per_trial) < 1:
+            raise ValueError("--num-iterations-per-trial must be >= 1.")
+        task["num_iterations_per_trial"] = int(args.num_iterations_per_trial)
+        fixed_args = config.setdefault("fixed_args", {})
+        fixed_args["max_iters"] = int(args.num_iterations_per_trial)
+        fixed_args["lr_decay_iters"] = int(args.num_iterations_per_trial)
 
     run_optuna_experiment.resolve_tuned_lr_param_name(hyperparameters)
 

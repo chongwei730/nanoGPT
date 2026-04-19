@@ -14,6 +14,7 @@ from dataclasses import dataclass
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
+from schedulefree_import import load_adamw_schedulefree
 
 class LayerNorm(nn.Module):
     """ LayerNorm but with an optional bias. PyTorch doesn't support simply bias=False """
@@ -284,13 +285,7 @@ class GPT(nn.Module):
         elif optimizer_type == 'Adam':
             optimizer_cls = torch.optim.Adam
         elif optimizer_type == 'AdamWScheduleFree':
-            try:
-                from schedulefree import AdamWScheduleFree
-            except ImportError as exc:
-                raise ImportError(
-                    "optimizer_type=AdamWScheduleFree requires the `schedulefree` package "
-                    "to be installed in the runtime environment."
-                ) from exc
+            AdamWScheduleFree = load_adamw_schedulefree()
             optimizer = AdamWScheduleFree(
                 optim_groups,
                 lr=learning_rate,
