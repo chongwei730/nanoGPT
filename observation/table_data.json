@@ -1,7 +1,6 @@
 {
-  "generated_at": "2026-04-12T19:29:49Z",
-  "experiment_root": "/users/9/chen8596/nanoGPT/experiment_runs",
-  "entry_count": 2,
+  "experiment_root": "/work/nvme/bgop/cchen47/experiment_runs",
+  "entry_count": 3,
   "entries": [
     {
       "family": "GPT",
@@ -15,14 +14,13 @@
         "size_label": "124M/5B",
         "method": "Linesearch",
         "tuning_time_hours": null,
-        "loss": 3.2586450576782227,
-        "wall_clock_hours": 2.509728064801958,
-        "source_path": "experiment_runs/gpt124m_line_search_stage2_c0.1/final/summary.json",
+        "loss": 3.165461540222168,
+        "wall_clock_hours": 1.2021057869990666,
+        "total_spent_time_hours": 1.2021057869990666,
+        "source_path": "/work/nvme/bgop/cchen47/experiment_runs/gpt124m_line_search_muon_stage2/final/summary.json",
         "metadata": {
-          "kind": "standalone_final",
-          "experiment_name": "gpt124m_line_search",
-          "stage2_result_path": "experiment_runs/gpt124m_line_search_stage2_c0.1/stage2_result.json",
-          "loaded_learning_rate": 1e-06
+          "kind": "linesearch_final",
+          "experiment_name": "gpt124m_line_search_muon"
         }
       },
       "candidates": [
@@ -32,14 +30,28 @@
           "size_label": "124M/5B",
           "method": "Linesearch",
           "tuning_time_hours": null,
-          "loss": 3.2586450576782227,
-          "wall_clock_hours": 2.509728064801958,
-          "source_path": "experiment_runs/gpt124m_line_search_stage2_c0.1/final/summary.json",
+          "loss": 3.165461540222168,
+          "wall_clock_hours": 1.2021057869990666,
+          "total_spent_time_hours": 1.2021057869990666,
+          "source_path": "/work/nvme/bgop/cchen47/experiment_runs/gpt124m_line_search_muon_stage2/final/summary.json",
           "metadata": {
-            "kind": "standalone_final",
-            "experiment_name": "gpt124m_line_search",
-            "stage2_result_path": "experiment_runs/gpt124m_line_search_stage2_c0.1/stage2_result.json",
-            "loaded_learning_rate": 1e-06
+            "kind": "linesearch_final",
+            "experiment_name": "gpt124m_line_search_muon"
+          }
+        },
+        {
+          "family": "GPT",
+          "model_size": "124M",
+          "size_label": "124M/5B",
+          "method": "Linesearch",
+          "tuning_time_hours": null,
+          "loss": 3.226271629333496,
+          "wall_clock_hours": 1.2318064017428292,
+          "total_spent_time_hours": 1.2318064017428292,
+          "source_path": "/work/nvme/bgop/cchen47/experiment_runs/gpt124m_line_search_stage2/final/summary.json",
+          "metadata": {
+            "kind": "linesearch_final",
+            "experiment_name": "gpt124m_line_search"
           }
         }
       ]
@@ -55,15 +67,18 @@
         "model_size": "124M",
         "size_label": "124M/5B",
         "method": "cosine",
-        "tuning_time_hours": 15.0,
-        "loss": 3.2945644855499268,
-        "wall_clock_hours": 1.1106890577077866,
-        "source_path": "experiment_runs/gpt124m_lr_search_staged_15h/level_15h/stage2/final/summary.json",
+        "tuning_time_hours": 5.208845240738657,
+        "loss": 3.2475028038024902,
+        "wall_clock_hours": 0.9207001725832621,
+        "total_spent_time_hours": 1.2084820891751185,
+        "source_path": "/work/nvme/bgop/cchen47/experiment_runs/gpt124m_lr_search_serial_halving_num_trials_16/serial_halving_result.json",
         "metadata": {
-          "kind": "staged_search",
-          "experiment_name": "gpt124m_lr_search",
-          "stage2_result_path": "experiment_runs/gpt124m_lr_search_staged_15h/level_15h/stage2/stage2_result.json",
-          "stage1_summary_path": "experiment_runs/gpt124m_lr_search_staged_15h/level_15h/stage1/study_summary.json"
+          "kind": "serial_halving",
+          "result_path": "",
+          "rung_index": 2,
+          "rung_name": "rung_02",
+          "num_trials": 1,
+          "rung_target_iters": 5000
         }
       },
       "candidates": [
@@ -72,15 +87,18 @@
           "model_size": "124M",
           "size_label": "124M/5B",
           "method": "cosine",
-          "tuning_time_hours": 15.0,
-          "loss": 3.2945644855499268,
-          "wall_clock_hours": 1.1106890577077866,
-          "source_path": "experiment_runs/gpt124m_lr_search_staged_15h/level_15h/stage2/final/summary.json",
+          "tuning_time_hours": 4.169506490164332,
+          "loss": 3.2668871879577637,
+          "wall_clock_hours": 0.9021453285217285,
+          "total_spent_time_hours": 1.175651084250874,
+          "source_path": "/work/nvme/bgop/cchen47/experiment_runs/gpt124m_lr_search_serial_halving_num_trials_12/serial_halving_result.json",
           "metadata": {
-            "kind": "staged_search",
-            "experiment_name": "gpt124m_lr_search",
-            "stage2_result_path": "experiment_runs/gpt124m_lr_search_staged_15h/level_15h/stage2/stage2_result.json",
-            "stage1_summary_path": "experiment_runs/gpt124m_lr_search_staged_15h/level_15h/stage1/study_summary.json"
+            "kind": "serial_halving",
+            "result_path": "",
+            "rung_index": 2,
+            "rung_name": "rung_02",
+            "num_trials": 1,
+            "rung_target_iters": 5000
           }
         },
         {
@@ -88,15 +106,18 @@
           "model_size": "124M",
           "size_label": "124M/5B",
           "method": "cosine",
-          "tuning_time_hours": 6.0,
-          "loss": 3.439756393432617,
-          "wall_clock_hours": 1.106274413201544,
-          "source_path": "experiment_runs/gpt124m_lr_search_staged_6h/level_6h/stage2/final/summary.json",
+          "tuning_time_hours": 5.208845240738657,
+          "loss": 3.2475028038024902,
+          "wall_clock_hours": 0.9207001725832621,
+          "total_spent_time_hours": 1.2084820891751185,
+          "source_path": "/work/nvme/bgop/cchen47/experiment_runs/gpt124m_lr_search_serial_halving_num_trials_16/serial_halving_result.json",
           "metadata": {
-            "kind": "staged_search",
-            "experiment_name": "gpt124m_lr_search",
-            "stage2_result_path": "experiment_runs/gpt124m_lr_search_staged_6h/level_6h/stage2/stage2_result.json",
-            "stage1_summary_path": "experiment_runs/gpt124m_lr_search_staged_6h/level_6h/stage1/study_summary.json"
+            "kind": "serial_halving",
+            "result_path": "",
+            "rung_index": 2,
+            "rung_name": "rung_02",
+            "num_trials": 1,
+            "rung_target_iters": 5000
           }
         },
         {
@@ -104,15 +125,84 @@
           "model_size": "124M",
           "size_label": "124M/5B",
           "method": "cosine",
-          "tuning_time_hours": 3.0,
-          "loss": 3.462355375289917,
-          "wall_clock_hours": 1.107730439901352,
-          "source_path": "experiment_runs/gpt124m_lr_search_staged_3h/level_3h/stage2/final/summary.json",
+          "tuning_time_hours": 7.921272050340971,
+          "loss": 3.3012871742248535,
+          "wall_clock_hours": 0.6275162702798843,
+          "total_spent_time_hours": 1.1800848575433096,
+          "source_path": "/work/nvme/bgop/cchen47/experiment_runs/gpt124m_lr_search_serial_halving_num_trials_8/serial_halving_result.json",
           "metadata": {
-            "kind": "staged_search",
-            "experiment_name": "gpt124m_lr_search",
-            "stage2_result_path": "/work/nvme/bgop/cchen47/gpt124m_lr_search_staged_3h/level_3h/stage2/stage2_result.json",
-            "stage1_summary_path": "experiment_runs/gpt124m_lr_search_staged_3h/level_3h/stage1/study_summary.json"
+            "kind": "serial_halving",
+            "result_path": "",
+            "rung_index": 3,
+            "rung_name": "rung_03",
+            "num_trials": 1,
+            "rung_target_iters": 5000
+          }
+        }
+      ]
+    },
+    {
+      "family": "GPT",
+      "model_size": "124M",
+      "size_label": "124M/5B",
+      "method": "schedulefree_adam",
+      "selection_rule": "min_loss",
+      "selected": {
+        "family": "GPT",
+        "model_size": "124M",
+        "size_label": "124M/5B",
+        "method": "schedulefree_adam",
+        "tuning_time_hours": 5.239200602107578,
+        "loss": 3.7154383659362793,
+        "wall_clock_hours": 0.9238555745946037,
+        "total_spent_time_hours": 1.2132937070396212,
+        "source_path": "/work/nvme/bgop/cchen47/experiment_runs/gpt124m_schedulefree_adam_lr_search_serial_halving_num_trials_16/serial_halving_result.json",
+        "metadata": {
+          "kind": "serial_halving",
+          "result_path": "",
+          "rung_index": 2,
+          "rung_name": "rung_02",
+          "num_trials": 1,
+          "rung_target_iters": 5000
+        }
+      },
+      "candidates": [
+        {
+          "family": "GPT",
+          "model_size": "124M",
+          "size_label": "124M/5B",
+          "method": "schedulefree_adam",
+          "tuning_time_hours": 4.171832801236047,
+          "loss": 3.7553341388702393,
+          "wall_clock_hours": 0.9305949138270484,
+          "total_spent_time_hours": 1.2231310325860978,
+          "source_path": "/work/nvme/bgop/cchen47/experiment_runs/gpt124m_schedulefree_adam_lr_search_serial_halving_num_trials_12/serial_halving_result.json",
+          "metadata": {
+            "kind": "serial_halving",
+            "result_path": "",
+            "rung_index": 2,
+            "rung_name": "rung_02",
+            "num_trials": 1,
+            "rung_target_iters": 5000
+          }
+        },
+        {
+          "family": "GPT",
+          "model_size": "124M",
+          "size_label": "124M/5B",
+          "method": "schedulefree_adam",
+          "tuning_time_hours": 5.239200602107578,
+          "loss": 3.7154383659362793,
+          "wall_clock_hours": 0.9238555745946037,
+          "total_spent_time_hours": 1.2132937070396212,
+          "source_path": "/work/nvme/bgop/cchen47/experiment_runs/gpt124m_schedulefree_adam_lr_search_serial_halving_num_trials_16/serial_halving_result.json",
+          "metadata": {
+            "kind": "serial_halving",
+            "result_path": "",
+            "rung_index": 2,
+            "rung_name": "rung_02",
+            "num_trials": 1,
+            "rung_target_iters": 5000
           }
         }
       ]

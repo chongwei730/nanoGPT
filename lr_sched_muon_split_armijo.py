@@ -724,7 +724,8 @@ class LineSearchScheduler():
         self.line_search_alpha = alpha
         self.prev_alpha = alpha
         self.line_search_magnitude = alpha * dir_norm
-        print("LINESEARCH LR:", alpha, "magnitude:", self.line_search_magnitude)
+        if (not dist.is_initialized()) or dist.get_rank() == 0:
+            print("LINESEARCH LR:", alpha, "magnitude:", self.line_search_magnitude)
         if step < warmup_length:
             self.prev_magnitude = self.line_search_magnitude 
         else:
@@ -1437,6 +1438,5 @@ def search_backtracking_visual(
     plt.close()
 
     return chosen_alpha, chosen_phi
-
 
 

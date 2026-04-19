@@ -15,12 +15,12 @@ import run_optuna_experiment
 
 
 class RunOptunaExperimentIntegrationTest(unittest.TestCase):
-    def test_tiny_gpu_/work/nvme/bgop/cchen47_end_to_end(self):
+    def test_tiny_gpu_/work/nvme/bgop/cchen47/experiment_runs_end_to_end(self):
         if not torch.cuda.is_available():
             self.skipTest("CUDA is required for the real torchrun integration path.")
 
         repo_root = Path(__file__).resolve().parents[1]
-        output_root = repo_root / "/work/nvme/bgop/cchen47"
+        output_root = repo_root / "/work/nvme/bgop/cchen47/experiment_runs"
 
         with tempfile.TemporaryDirectory(dir="/tmp") as tmpdir_str:
             tmpdir = Path(tmpdir_str)
@@ -50,7 +50,7 @@ class RunOptunaExperimentIntegrationTest(unittest.TestCase):
 
             dataset_override = os.path.relpath(
                 dataset_dir,
-                "/work/nvme/bgop/cchen47/nanogpt_data",
+                "/work/nvme/bgop/cchen47/experiment_runs/nanogpt_data",
             )
             config_path = tmpdir / "tiny_optuna.yaml"
             config = {

@@ -96,10 +96,6 @@ stop_at_eval_boundary = False
 config_keys = [k for k,v in globals().items() if not k.startswith('_') and isinstance(v, (int, float, bool, str))]
 exec(open('configurator.py').read()) # overrides from command line or config file
 config = {k: globals()[k] for k in config_keys} # will be useful for logging
-always_save_checkpoint = False
-save_last_checkpoint = False
-config['always_save_checkpoint'] = False
-config['save_last_checkpoint'] = False
 # -----------------------------------------------------------------------------
 
 # various inits, derived attributes, I/O setup
@@ -315,7 +311,16 @@ def get_lr(it):
     return min_lr + coeff * (learning_rate - min_lr)
 
 def save_checkpoint(path):
-    return
+    checkpoint = {
+        'model': raw_model.state_dict(),
+        'optimizer': optimizer.state_dict(),
+        'model_args': model_args,
+        'iter_num': iter_num,
+        'best_val_loss': best_val_loss,
+        'config': config,
+    }
+    print(f"saving checkpoint to {path}")
+    torch.save(checkpoint, path)
 
 def write_experiment_summary(
     termination_reason,
@@ -328,8 +333,8 @@ def write_experiment_summary(
         'trial_id': trial_id,
         'train_script': 'train_muon.py',
         'out_dir': out_dir,
-        'best_checkpoint_path': '',
-        'last_checkpoint_path': '',
+        'best_checkpoint_path': os.path.join(out_dir, 'ckpt.pt') if os.path.exists(os.path.join(out_dir, 'ckpt.pt')) else '',
+        'last_checkpoint_path': os.path.join(out_dir, 'ckpt_last.pt') if os.path.exists(os.path.join(out_dir, 'ckpt_last.pt')) else '',
         'best_train_loss': float(best_train_loss),
         'best_val_loss': float(best_val_loss),
         'iter_num': int(iter_num),

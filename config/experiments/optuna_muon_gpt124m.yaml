@@ -22,7 +22,7 @@ fixed_args:
 hyperparameters:
   muon_lr:
     type: log_uniform
-    range: [1.0e-3, 1.0e-1]
+    range: [1.0e-6, 1.0e-1]
 
 task:
   train_metric: train_loss

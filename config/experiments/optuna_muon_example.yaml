@@ -22,7 +22,7 @@ fixed_args:
 hyperparameters:
   learning_rate:
     type: log_uniform
-    range: [1e-4, 1e-3]
+    range: [1e-6, 1e-1]
 
 task:
   train_metric: train_loss

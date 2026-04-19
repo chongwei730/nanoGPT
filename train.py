@@ -54,6 +54,7 @@ n_embd = 768
 dropout = 0.0 # for pretraining 0 is good, for finetuning try 0.1+
 bias = False # do we use bias inside LayerNorm and Linear layers?
 # adamw optimizer
+optimizer_type = 'AdamW'
 learning_rate = 6e-4 # max learning rate
 max_iters = 5000 # total number of training iterations
 weight_decay = 1e-1
@@ -229,9 +230,18 @@ if master_process:
 scaler = torch.cuda.amp.GradScaler(enabled=(dtype == 'float16'))
 
 # optimizer
-optimizer = model.configure_optimizers(weight_decay, learning_rate, (beta1, beta2), device_type)
+optimizer = model.configure_optimizers(
+    weight_decay,
+    learning_rate,
+    (beta1, beta2),
+    device_type,
+    optimizer_type=optimizer_type,
+    warmup_steps=warmup_iters,
+)
 if init_from == 'resume':
     optimizer.load_state_dict(checkpoint['optimizer'])
+if hasattr(optimizer, 'train'):
+    optimizer.train()
 checkpoint = None # free up memory
 
 # compile the model
@@ -249,7 +259,6 @@ if ddp:
 def estimate_loss():
     out = {}
     eval_model = model.module if ddp else model
-    eval_model.eval()
     for split in ['train', 'val']:
         losses = torch.zeros(eval_iters)
         for k in range(eval_iters):
@@ -258,7 +267,6 @@ def estimate_loss():
                 logits, loss = eval_model(X, Y)
             losses[k] = loss.item()
         out[split] = losses.mean()
-    eval_model.train()
     return out
 
 # learning rate decay scheduler (cosine with warmup)
@@ -350,6 +358,9 @@ while True:
     # evaluate the loss on train/val sets and write checkpoints
     if iter_num % eval_interval == 0:
         should_terminate = False
+        raw_model.eval()
+        if hasattr(optimizer, 'eval'):
+            optimizer.eval()
         if master_process:
             losses = estimate_loss()
             print(f"step {iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
@@ -368,6 +379,9 @@ while True:
             termination_flag = torch.tensor([int(should_terminate)], device=device)
             dist.broadcast(termination_flag, src=0)
             should_terminate = bool(termination_flag.item())
+        raw_model.train()
+        if hasattr(optimizer, 'train'):
+            optimizer.train()
         if should_terminate:
             break
     if iter_num == 0 and eval_only:

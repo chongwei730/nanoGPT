@@ -527,12 +527,10 @@ class LineSearchScheduler():
                     factor=factor,
                     log_dir=log_dir
                 )
-        if step <= warmup_length and alpha < self.prev_alpha:
-            alpha = self.prev_alpha
-        
         # if alpha is None or not np.isfinite(alpha) or alpha <= 0:
-        #     current_lr = self.optimizer.param_groups[0]["lr"]
-        #     alpha = float(current_lr if np.isfinite(current_lr) and current_lr > 0 else self.start_lr)
+        current_lr = self.optimizer.param_groups[0]["lr"]
+        if step <= warmup_length and alpha < current_lr:
+            alpha = current_lr
 
         # print(f"[LineSearchScheduler] alpha={alpha:.6g}, fc={fc}")
         
@@ -540,7 +538,8 @@ class LineSearchScheduler():
         #         param_group['lr'] = alpha
 
         self.line_search_alpha = alpha
-        print(alpha)
+        if (not dist.is_initialized()) or dist.get_rank() == 0:
+            print(f"LINESEARCH LR: {alpha}")
         # for param_group in self.optimizer.param_groups: 
         #         param_group['lr'] = alpha
 
@@ -1377,6 +1376,5 @@ def search_backtracking_visual(
     plt.close()
 
     return chosen_alpha, chosen_phi
-
 
 

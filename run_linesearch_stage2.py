@@ -159,6 +159,7 @@ def build_command(
             f"--max_running_time_hours={max_running_time_hours}",
             f"--save_last_checkpoint={save_last_checkpoint}",
             f"--experiment_summary_path={summary_path}",
+            f"--experiment_records_path={os.path.join(out_dir, 'records.jsonl')}",
             f"--prune_signal_path={prune_signal_path}",
         ]
     )
@@ -209,11 +210,6 @@ def main():
     returncode, _ = run_optuna_experiment.stream_process(
         command,
         log_path,
-        record_paths=[records_path],
-        record_context={
-            "stage": "stage2",
-            "trial_id": args.trial_id,
-        },
     )
 
     summary = run_optuna_experiment.read_summary(summary_path)
@@ -223,6 +219,8 @@ def main():
         summary=summary,
         run_dir=final_dir,
     )
+    if loaded_learning_rate is None and summary.get("learning_rate") is not None:
+        loaded_learning_rate = float(summary["learning_rate"])
 
     stage2_result = {
         "schema_version": 1,

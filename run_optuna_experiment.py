@@ -20,7 +20,11 @@ except ImportError as exc:  # pragma: no cover - import guard for runtime
 
 
 TABLE_PATH = os.path.join("docs", "table.txt")
-EVAL_LINE_RE = re.compile(r"^step (\d+): train loss ([0-9.]+), val loss ([0-9.]+)$")
+EVAL_LINE_RE = re.compile(
+    r"^step (\d+): train loss "
+    r"([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?), val loss "
+    r"([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)"
+)
 
 
 def parse_args():

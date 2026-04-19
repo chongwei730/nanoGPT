@@ -1,70 +1,29 @@
 \begin{table}[htbp]
 \centering
-\begin{tabular}{c|c|c|c|c|c|c|c|c|c}
+\begin{tabular}{c|c|c|c}
 \hline
-\textbf{GPT} & \multicolumn{3}{c|}{124M/5B} & \multicolumn{3}{c|}{Size} & \multicolumn{3}{c}{Size} \\
-\hline
-
-\textbf{Method1} & Tuning time & Loss & Spent time & Tuning time & Loss & Spent time & Tuning time & Loss & Spent time \\
-\hline
- & 3h & 3.4624 & 1.11h &  &  &  &  &  &  \\
-\hline
- & 6h & 3.4398 & 1.11h &  &  &  &  &  &  \\
-\hline
- & 15h & 3.2946 & 1.11h &  &  &  &  &  &  \\
+\textbf{GPT} & \multicolumn{3}{c}{124M/5B} \\
 \hline
 
-\textbf{Method2} & Tuning time & Loss & Spent time & Tuning time & Loss & Spent time & Tuning time & Loss & Spent time \\
+\textbf{cosine} & Tuning time & Loss & Spent time \\
 \hline
- &  &  &  &  &  &  &  &  &  \\
+ & 4.17h & 3.2669 & 1.18h \\
 \hline
- &  &  &  &  &  &  &  &  &  \\
+ & 5.21h & 3.2475 & 1.21h \\
 \hline
- &  &  &  &  &  &  &  &  &  \\
-\hline
-
-\textbf{Method3} & Tuning time & Loss & Spent time & Tuning time & Loss & Spent time & Tuning time & Loss & Spent time \\
-\hline
- &  &  &  &  &  &  &  &  &  \\
-\hline
- &  &  &  &  &  &  &  &  &  \\
-\hline
- &  &  &  &  &  &  &  &  &  \\
+ & 7.92h & 3.3013 & 1.18h \\
 \hline
 
-\textbf{Linesearch} & Nah & 3.2586 & 2.51h & Nah &  &  & Nah &  &  \\
+\textbf{schedulefree_adam} & Tuning time & Loss & Spent time \\
 \hline
-\textbf{LLAMA} & \multicolumn{3}{c|}{Size} & \multicolumn{3}{c|}{Size} & \multicolumn{3}{c}{Size} \\
+ & 4.17h & 3.7553 & 1.22h \\
 \hline
-
-\textbf{Method1} & Tuning time & Loss & Spent time & Tuning time & Loss & Spent time & Tuning time & Loss & Spent time \\
+ & 5.24h & 3.7154 & 1.21h \\
 \hline
- &  &  &  &  &  &  &  &  &  \\
-\hline
- &  &  &  &  &  &  &  &  &  \\
-\hline
- &  &  &  &  &  &  &  &  &  \\
+ &  &  &  \\
 \hline
 
-\textbf{Method2} & Tuning time & Loss & Spent time & Tuning time & Loss & Spent time & Tuning time & Loss & Spent time \\
-\hline
- &  &  &  &  &  &  &  &  &  \\
-\hline
- &  &  &  &  &  &  &  &  &  \\
-\hline
- &  &  &  &  &  &  &  &  &  \\
-\hline
-
-\textbf{Method3} & Tuning time & Loss & Spent time & Tuning time & Loss & Spent time & Tuning time & Loss & Spent time \\
-\hline
- &  &  &  &  &  &  &  &  &  \\
-\hline
- &  &  &  &  &  &  &  &  &  \\
-\hline
- &  &  &  &  &  &  &  &  &  \\
-\hline
-
-\textbf{Linesearch} & Nah &  &  & Nah &  &  & Nah &  &  \\
+\textbf{Linesearch} & Nah & 3.1655 & 1.20h \\
 \hline
 \end{tabular}
 \caption{Comparison with tuning time, loss, and spent time}

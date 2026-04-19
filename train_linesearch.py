@@ -73,7 +73,7 @@ linesearch_interval = 0
 linesearch_accum_steps = 32
 linesearch_num_search = 30
 linesearch_start_lr = 0.0
-linesearch_c1 = 0.2
+linesearch_c1 = 0.1
 linesearch_search_mode = 'bisection'
 linesearch_factor = 0.5
 # DDP settings
@@ -94,6 +94,7 @@ experiment_test_target_enabled = False
 max_running_time_hours = 0.0
 save_last_checkpoint = True
 experiment_summary_path = ''
+experiment_records_path = ''
 prune_signal_path = ''
 stop_at_eval_boundary = False
 # -----------------------------------------------------------------------------
@@ -284,7 +285,16 @@ scheduler = LineSearchScheduler(optimizer=optimizer,
                                 warmup_length=warmup_iters)
 
 def save_checkpoint(path):
-    return
+    checkpoint = {
+        'model': raw_model.state_dict(),
+        'optimizer': optimizer.state_dict(),
+        'model_args': model_args,
+        'iter_num': iter_num,
+        'best_val_loss': best_val_loss,
+        'config': config,
+    }
+    print(f"saving checkpoint to {path}")
+    torch.save(checkpoint, path)
 
 def write_experiment_summary(
     termination_reason,
@@ -297,12 +307,12 @@ def write_experiment_summary(
         'trial_id': trial_id,
         'train_script': 'train_linesearch.py',
         'out_dir': out_dir,
-        'best_checkpoint_path': '',
-        'last_checkpoint_path': '',
+        'best_checkpoint_path': os.path.join(out_dir, 'ckpt.pt') if os.path.exists(os.path.join(out_dir, 'ckpt.pt')) else '',
+        'last_checkpoint_path': os.path.join(out_dir, 'ckpt_last.pt') if os.path.exists(os.path.join(out_dir, 'ckpt_last.pt')) else '',
         'best_train_loss': float(best_train_loss),
         'best_val_loss': float(best_val_loss),
         'iter_num': int(iter_num),
-        'learning_rate': float(learning_rate),
+        'learning_rate': float(optimizer.param_groups[0]['lr']),
         'metric_mode': experiment_metric_mode,
         'wall_clock_hours': float(elapsed_hours),
         'forward_backward_hours': float(elapsed_hours),
@@ -313,6 +323,22 @@ def write_experiment_summary(
     }
     with open(experiment_summary_path, 'w', encoding='utf-8') as f:
         json.dump(summary, f, indent=2, sort_keys=True)
+
+
+def append_experiment_record(step, train_loss, val_loss, wall_clock_hours):
+    if not experiment_records_path or not master_process:
+        return
+    record = {
+        'stage': 'stage2',
+        'trial_id': trial_id,
+        'step': int(step),
+        'train_loss': float(train_loss),
+        'val_loss': float(val_loss),
+        'wall_clock_hours': float(wall_clock_hours),
+        'learning_rate': float(optimizer.param_groups[0]['lr']),
+    }
+    with open(experiment_records_path, 'a', encoding='utf-8') as f:
+        f.write(json.dumps(record, sort_keys=True) + '\n')
 
 def prune_requested():
     return bool(prune_signal_path) and os.path.exists(prune_signal_path)
@@ -411,6 +437,12 @@ while True:
             losses = estimate_loss()
             print(f"step {iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
             best_train_loss = min(best_train_loss, losses['train'].item())
+            append_experiment_record(
+                step=iter_num,
+                train_loss=losses['train'].item(),
+                val_loss=losses['val'].item(),
+                wall_clock_hours=forward_backward_seconds / 3600.0,
+            )
             if losses['val'] < best_val_loss or always_save_checkpoint:
                 best_val_loss = losses['val']
                 if iter_num > 0:
