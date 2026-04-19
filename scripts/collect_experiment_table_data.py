@@ -3,7 +3,7 @@ import argparse
 import json
 import re
 from collections import defaultdict
-from datetime import datetime
+# from datetime import UTC, datetime
 from pathlib import Path
 
 
@@ -13,7 +13,11 @@ def parse_args():
     )
     parser.add_argument(
         "--experiment-root",
+<<<<<<< HEAD
         default="/scratch.global/chen8596//scratch.global/chen8596",
+=======
+        default="/work/nvme/bgop/cchen47/experiment_runs",
+>>>>>>> master
         help="Root directory containing experiment outputs.",
     )
     parser.add_argument(
@@ -31,8 +35,16 @@ def parse_args():
 
 
 def load_json(path):
-    with path.open("r", encoding="utf-8") as handle:
+    with Path(path).open("r", encoding="utf-8") as handle:
         return json.load(handle)
+
+
+def normalize_model_size(raw_size):
+    match = re.fullmatch(r"(\d+(?:\.\d+)?)([mMbB])", raw_size.strip())
+    if not match:
+        return raw_size.strip()
+    number, suffix = match.groups()
+    return f"{number}{suffix.upper()}"
 
 
 def parse_size_overrides(items):
@@ -46,14 +58,6 @@ def parse_size_overrides(items):
         family, size = key.split(":", 1)
         overrides[(family.strip().upper(), normalize_model_size(size.strip()))] = label.strip()
     return overrides
-
-
-def normalize_model_size(raw_size):
-    match = re.fullmatch(r"(\d+(?:\.\d+)?)([mMbB])", raw_size.strip())
-    if not match:
-        return raw_size.strip()
-    number, suffix = match.groups()
-    return f"{number}{suffix.upper()}"
 
 
 def infer_family(experiment_name):
@@ -77,11 +81,43 @@ def infer_method(experiment_name, train_script):
     lowered_script = (train_script or "").lower()
     if "line_search" in lowered_name or "linesearch" in lowered_name:
         return "Linesearch"
+    if "schedulefree" in lowered_name:
+        return "schedulefree_adam"
     if "muon" in lowered_name or "muon" in lowered_script:
         return "muon"
     if "lr_search" in lowered_name or lowered_script == "train.py":
         return "cosine"
     return experiment_name
+
+
+def compute_trial_total_spent_time_hours(trial_dir):
+    records_path = Path(trial_dir) / "records.jsonl"
+    if not records_path.exists():
+        return None
+
+    total = 0.0
+    segment_max = None
+    previous = None
+    with records_path.open("r", encoding="utf-8") as handle:
+        for raw_line in handle:
+            line = raw_line.strip()
+            if not line:
+                continue
+            record = json.loads(line)
+            current = record.get("wall_clock_hours")
+            if current is None:
+                continue
+            current = float(current)
+            if previous is not None and current < previous:
+                if segment_max is not None:
+                    total += segment_max
+                segment_max = current
+            else:
+                segment_max = current if segment_max is None else max(segment_max, current)
+            previous = current
+    if segment_max is not None:
+        total += segment_max
+    return total if total > 0 else None
 
 
 def make_candidate(
@@ -92,6 +128,7 @@ def make_candidate(
     tuning_time_hours,
     loss,
     wall_clock_hours,
+    total_spent_time_hours,
     source_path,
     metadata,
 ):
@@ -103,68 +140,74 @@ def make_candidate(
         "tuning_time_hours": tuning_time_hours,
         "loss": loss,
         "wall_clock_hours": wall_clock_hours,
+        "total_spent_time_hours": total_spent_time_hours,
         "source_path": str(source_path),
         "metadata": metadata,
     }
 
 
-def collect_staged_searches(experiment_root, size_overrides):
+def collect_serial_halving_entries(experiment_root, size_overrides):
     candidates = []
-    pattern = "*/rung_*/stage2/final/summary.json"
-    for summary_path in sorted(experiment_root.glob(pattern)):
-        summary = load_json(summary_path)
-        stage2_result_path = summary_path.parents[1] / "stage2_result.json"
-        stage1_summary_path = summary_path.parents[2] / "stage1" / "study_summary.json"
-        stage2_result = load_json(stage2_result_path) if stage2_result_path.exists() else {}
-        stage1_summary = load_json(stage1_summary_path) if stage1_summary_path.exists() else {}
-
-        experiment_name = summary.get("experiment_name", "")
-        train_script = summary.get("train_script", "")
-        family = stage1_summary.get("target_family") or infer_family(experiment_name)
+    for result_path in sorted(experiment_root.glob("*/serial_halving_result.json")):
+        payload = load_json(result_path)
+        results = payload.get("results", [])
+        if not results:
+            continue
+        result = results[-1]
+        experiment_name = result.get("experiment_name", "")
+        train_script = ""
+        selected_summary_path = result.get("selected_summary_path")
+        if selected_summary_path and Path(selected_summary_path).exists():
+            selected_summary = load_json(selected_summary_path)
+            train_script = selected_summary.get("train_script", "")
+        family = (result.get("target_family") or infer_family(experiment_name)).upper()
         model_size = normalize_model_size(
-            stage1_summary.get("target_model_size") or infer_model_size(experiment_name)
+            result.get("target_model_size") or infer_model_size(experiment_name)
         )
-        size_label = size_overrides.get((family.upper(), model_size), model_size)
         method = infer_method(experiment_name, train_script)
-        tuning_time_hours = stage2_result.get("max_study_time_hours")
-
+        size_label = size_overrides.get((family, model_size), model_size)
+        total_spent_time_hours = compute_trial_total_spent_time_hours(
+            result.get("selected_trial_dir", "")
+        )
         candidates.append(
             make_candidate(
                 family=family,
                 model_size=model_size,
                 size_label=size_label,
                 method=method,
-                tuning_time_hours=tuning_time_hours,
-                loss=summary.get("best_val_loss"),
-                wall_clock_hours=summary.get("elapsed_wall_clock_hours"),
-                source_path=summary_path,
+                tuning_time_hours=result.get("total_running_time_hours"),
+                loss=result.get("best_val_loss"),
+                wall_clock_hours=result.get("elapsed_wall_clock_hours"),
+                total_spent_time_hours=total_spent_time_hours,
+                source_path=result_path,
                 metadata={
-                    "kind": "staged_search",
-                    "experiment_name": experiment_name,
-                    "stage2_result_path": str(stage2_result_path) if stage2_result_path.exists() else "",
-                    "stage1_summary_path": str(stage1_summary_path) if stage1_summary_path.exists() else "",
+                    "kind": "serial_halving",
+                    "result_path": result.get("result_path", ""),
+                    "rung_index": result.get("rung_index"),
+                    "rung_name": result.get("rung_name", ""),
+                    "num_trials": result.get("num_trials"),
+                    "rung_target_iters": result.get("rung_target_iters"),
                 },
             )
         )
     return candidates
 
 
-def collect_standalone_finals(experiment_root, size_overrides):
+def collect_linesearch_entries(experiment_root, size_overrides):
     candidates = []
-    pattern = "*/final/summary.json"
-    for summary_path in sorted(experiment_root.glob(pattern)):
-        if "rung_" in str(summary_path):
+    for summary_path in sorted(experiment_root.glob("*/final/summary.json")):
+        if "/rung_" in str(summary_path):
             continue
 
         summary = load_json(summary_path)
-        stage2_result_path = summary_path.parents[1] / "stage2_result.json"
-        stage2_result = load_json(stage2_result_path) if stage2_result_path.exists() else {}
         experiment_name = summary.get("experiment_name", "")
-        train_script = summary.get("train_script", "")
-        family = infer_family(experiment_name)
+        method = infer_method(experiment_name, summary.get("train_script", ""))
+        if method != "Linesearch":
+            continue
+
+        family = infer_family(experiment_name).upper()
         model_size = infer_model_size(experiment_name)
-        size_label = size_overrides.get((family.upper(), model_size), model_size)
-        method = infer_method(experiment_name, train_script)
+        size_label = size_overrides.get((family, model_size), model_size)
 
         candidates.append(
             make_candidate(
@@ -175,12 +218,11 @@ def collect_standalone_finals(experiment_root, size_overrides):
                 tuning_time_hours=None,
                 loss=summary.get("best_val_loss"),
                 wall_clock_hours=summary.get("elapsed_wall_clock_hours"),
+                total_spent_time_hours=summary.get("elapsed_wall_clock_hours"),
                 source_path=summary_path,
                 metadata={
-                    "kind": "standalone_final",
+                    "kind": "linesearch_final",
                     "experiment_name": experiment_name,
-                    "stage2_result_path": str(stage2_result_path) if stage2_result_path.exists() else "",
-                    "loaded_learning_rate": stage2_result.get("loaded_learning_rate"),
                 },
             )
         )
@@ -199,12 +241,19 @@ def aggregate_candidates(candidates):
         rows = sorted(
             grouped[key],
             key=lambda item: (
+                float("inf") if item["tuning_time_hours"] is None else item["tuning_time_hours"],
+                float("inf") if item["loss"] is None else item["loss"],
+                item["source_path"],
+            ),
+        )
+        selected = min(
+            rows,
+            key=lambda item: (
                 float("inf") if item["loss"] is None else item["loss"],
                 float("inf") if item["tuning_time_hours"] is None else item["tuning_time_hours"],
                 item["source_path"],
             ),
         )
-        selected = rows[0]
         entries.append(
             {
                 "family": family,
@@ -225,12 +274,12 @@ def main():
     size_overrides = parse_size_overrides(args.size_label)
 
     candidates = []
-    candidates.extend(collect_staged_searches(experiment_root, size_overrides))
-    candidates.extend(collect_standalone_finals(experiment_root, size_overrides))
+    candidates.extend(collect_serial_halving_entries(experiment_root, size_overrides))
+    candidates.extend(collect_linesearch_entries(experiment_root, size_overrides))
     entries = aggregate_candidates(candidates)
 
     payload = {
-        "generated_at": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+        # "generated_at": datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z"),
         "experiment_root": str(experiment_root.resolve()),
         "entry_count": len(entries),
         "entries": entries,

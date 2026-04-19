@@ -263,7 +263,15 @@ class GPT(nn.Module):
 
         return model
 
-    def configure_optimizers(self, weight_decay, learning_rate, betas, device_type, optimizer_type='AdamW'):
+    def configure_optimizers(
+        self,
+        weight_decay,
+        learning_rate,
+        betas,
+        device_type,
+        optimizer_type='AdamW',
+        warmup_steps=0,
+    ):
         # start with all of the candidate parameters
         param_dict = {pn: p for pn, p in self.named_parameters()}
         # filter out those that do not require grad
@@ -291,8 +299,9 @@ class GPT(nn.Module):
                 lr=learning_rate,
                 betas=betas,
                 weight_decay=weight_decay,
+                warmup_steps=warmup_steps,
             )
-            print("using optimizer: AdamWScheduleFree")
+            print(f"using optimizer: AdamWScheduleFree, warmup_steps={warmup_steps}")
             return optimizer
         else:
             raise ValueError(f"Unsupported optimizer_type: {optimizer_type}")

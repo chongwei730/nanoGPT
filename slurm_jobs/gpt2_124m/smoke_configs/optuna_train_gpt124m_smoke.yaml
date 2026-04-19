@@ -1,11 +1,11 @@
 experiment:
-  name: gpt355m_lr_search
+  name: gpt124m_lr_search_smoke
   train_script: train.py
-  train_config: config/train_gpt2_355m_7b.py
-  output_root: /scratch.global/chen8596/experiment_runs
+  train_config: config/train_gpt2.py
+  output_root: /work/nvme/bgop/cchen47/experiment_runs
   target_family: GPT
   target_dataset: OpenWebText
-  target_model_size: 355M
+  target_model_size: 124M
 
 launch:
   mode: torchrun
@@ -14,27 +14,28 @@ launch:
 fixed_args:
   dataset: openwebtext
   compile: false
-  eval_interval: 200
-  eval_iters: 20
-  log_interval: 10
+  eval_interval: __SMOKE_EVAL_INTERVAL__
+  eval_iters: 4
+  log_interval: 1
   always_save_checkpoint: true
-  max_iters: 13600
-  lr_decay_iters: 13600
+  max_iters: 20
+  warmup_iters: 2
+  lr_decay_iters: 20
 
 hyperparameters:
   learning_rate:
     type: log_uniform
-    range: [1.0e-5, 1.0e-2]
+    range: [1.0e-5, 1.0e-3]
 
 task:
   train_metric: train_loss
   test_metric: val_loss
   metric_mode: min
-  num_iterations_per_trial: 13600
-  max_running_time_per_trial_hours: 0.0
+  num_iterations_per_trial: 20
+  max_running_time_per_trial_hours: 0.05
 
 optuna:
-  max_study_time_hours: 120.0
+  max_study_time_hours: 0.25
   pruning:
     enabled: true
     type: median
