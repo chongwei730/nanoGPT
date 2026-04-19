@@ -1,7 +1,7 @@
 experiment:
   name: muon_lr_search
   train_script: train_muon.py
-  output_root: /work/nvme/bgop/cchen47/experiment_runs
+  output_root: /scratch.global/chen8596/experiment_runs
   target_family: GPT
   target_dataset: OpenWebText
   target_model_size: 124M
@@ -22,7 +22,7 @@ fixed_args:
 hyperparameters:
   learning_rate:
     type: log_uniform
-    range: [1e-6, 1e-1]
+    range: [1.0e-6, 1.0e-1]
 
 task:
   train_metric: train_loss

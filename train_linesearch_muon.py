@@ -36,7 +36,7 @@ from muon import MuonWithAuxAdam, SingleDeviceMuonWithAuxAdam
 # -----------------------------------------------------------------------------
 # default config values designed to train a gpt2 (124M) on OpenWebText
 # I/O
-out_dir = '/work/nvme/bgop/cchen47/out'
+out_dir = '/scratch.global/chen8596/out'
 eval_interval = 2000
 log_interval = 1
 eval_iters = 200
@@ -145,7 +145,7 @@ ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torc
 ctx = nullcontext() if device_type == 'cpu' else torch.amp.autocast(device_type=device_type, dtype=ptdtype)
 
 # poor man's data loader
-data_dir = os.path.join('/work/nvme/bgop/cchen47/nanogpt_data', dataset)
+data_dir = os.path.join('/scratch.global/chen8596/nanogpt_data', dataset)
 def load_token_data(filename):
     path = os.path.join(data_dir, filename)
     if data_backend == 'memmap':
