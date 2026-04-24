@@ -7,6 +7,7 @@
 #SBATCH --account=jinzn
 #SBATCH --gres=gpu:4
 #SBATCH -p a100-4,apollo_agate
+#SBATCH --constraint=a100
 #SBATCH --chdir=/users/9/chen8596/nanoGPT
 #SBATCH --output=/users/9/chen8596/nanoGPT/exp_log/llama350m_linesearch_muon_%A_%a.out
 #SBATCH --error=/users/9/chen8596/nanoGPT/exp_log/llama350m_linesearch_muon_%A_%a.err
@@ -34,7 +35,7 @@ RUN_ROOT="/scratch.global/chen8596/experiment_runs/llama350m_line_search_muon_st
 
 python run_linesearch_stage2.py \
   --run-root "$RUN_ROOT" \
-  --train-script "train_linesearch_llama_muon_stream.py" \
+  --train-script "train_linesearch_llama_muon.py" \
   --config-path "config/train_llama_350m.py" \
   --nproc-per-node 4 \
   --experiment-name "llama350m_line_search_muon" \

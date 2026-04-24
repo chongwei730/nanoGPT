@@ -20,6 +20,6 @@ llama_config_path = "llama_config/llama_1b.json"
 dataloader_num_workers = 4
 preprocessing_num_workers = 8
 tokenizer_batch_size = 1000
-tokenized_data_cache_dir = "/scratch.global/chen8596/_c4/c4_en_t5-base_len1024"
+tokenized_data_cache_dir = "/scratch.global/chen8596/tokenized_dataset_c4/c4_en_t5-base_len1024"
 hf_data_cache_dir = "/scratch.global/chen8596/hf_datasets_cache"
 overwrite_tokenized_cache = False

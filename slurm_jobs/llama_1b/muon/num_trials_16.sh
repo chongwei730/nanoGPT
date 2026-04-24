@@ -7,6 +7,7 @@
 #SBATCH --account=jinzn
 #SBATCH --gres=gpu:4
 #SBATCH -p a100-4,apollo_agate
+#SBATCH --constraint=a100
 #SBATCH --chdir=/users/9/chen8596/nanoGPT
 #SBATCH --output=/users/9/chen8596/nanoGPT/exp_log/llama1b_muon_n16_%A_%a.out
 #SBATCH --error=/users/9/chen8596/nanoGPT/exp_log/llama1b_muon_n16_%A_%a.err
