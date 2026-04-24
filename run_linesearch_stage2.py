@@ -25,7 +25,7 @@ def parse_args():
     )
     parser.add_argument(
         "--run-root",
-        default="/work/nvme/bgop/cchen47/experiment_runs/gpt124m_line_search_stage2",
+        default="/scratch.global/chen8596/experiment_runs/gpt124m_line_search_stage2",
         help="Root directory for stage2 outputs.",
     )
     parser.add_argument(

@@ -2,7 +2,7 @@ experiment:
   name: gpt355m_lr_search
   train_script: train.py
   train_config: config/train_gpt2_355m_7b.py
-  output_root: /work/nvme/bgop/cchen47/experiment_runs
+  output_root: /scratch.global/chen8596/experiment_runs
   target_family: GPT
   target_dataset: OpenWebText
   target_model_size: 355M

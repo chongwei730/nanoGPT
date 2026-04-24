@@ -744,9 +744,19 @@ class LineSearchScheduler():
         #     self.prev_magnitude = self.line_search_magnitude 
         # else:
         #     self.prev_magnitude = self.magnitude
+        if (not dist.is_initialized()) or dist.get_rank() == 0:
+            print(f"LINESEARCH LR: {alpha}")
+        # self.line_search_magnitude = alpha * dir_norm
+        # if (not dist.is_initialized()) or dist.get_rank() == 0:
+        #     print("LINESEARCH LR:", alpha, "magnitude:", self.line_search_magnitude)
+        # if step < warmup_length:
+        #     self.prev_magnitude = self.line_search_magnitude 
+        # else:
+        #     self.prev_magnitude = self.magnitude
 
         prev_lr = self.optimizer.param_groups[muon_indices[0]]["lr"]
         self.prev_alpha = prev_lr
+
 
 
 
@@ -1454,6 +1464,7 @@ def search_backtracking_visual(
     plt.close()
 
     return chosen_alpha, chosen_phi
+
 
 
 
