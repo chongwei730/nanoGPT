@@ -1,5 +1,6 @@
 import argparse
 import json
+import math
 import os
 import re
 import subprocess
@@ -110,6 +111,34 @@ def suggest_value(trial, name, spec):
         low, high = spec["range"]
         step = spec.get("step", 1)
         return trial.suggest_int(name, low, high, step=step)
+    if spec_type == "categorical":
+        values = list(spec["values"])
+        if not values:
+            raise ValueError(f"Categorical hyperparameter {name} must define at least one value.")
+        return trial.suggest_categorical(name, values)
+    if spec_type == "discrete":
+        values = list(spec.get("values", []))
+        if values:
+            return trial.suggest_categorical(name, values)
+        low, high = spec["range"]
+        num_choices = int(spec["num_choices"])
+        if num_choices < 1:
+            raise ValueError(f"Discrete hyperparameter {name} must have num_choices >= 1.")
+        if num_choices == 1:
+            return low
+        if spec.get("scale", "") == "log":
+            log_low = math.log(float(low))
+            log_high = math.log(float(high))
+            generated = [
+                math.exp(log_low + (log_high - log_low) * index / float(num_choices - 1))
+                for index in range(num_choices)
+            ]
+        else:
+            generated = [
+                float(low) + (float(high) - float(low)) * index / float(num_choices - 1)
+                for index in range(num_choices)
+            ]
+        return trial.suggest_categorical(name, generated)
     raise ValueError(f"Unsupported hyperparameter type for {name}: {spec_type}")
 
 
@@ -197,7 +226,7 @@ def build_pruner(config):
     min_resource = max(1, int(0.01 * max_iters))
     return optuna.pruners.SuccessiveHalvingPruner(
         min_resource=min_resource,
-        reduction_factor=4,
+        reduction_factor=2,
         min_early_stopping_rate=0,
     )
 
@@ -209,7 +238,16 @@ def choose_result_trial_from_optuna_trials(trials):
     ]
     if not completed_trials:
         return None, completed_trials
-    result_trial = sorted(completed_trials, key=lambda trial: trial.number)[-1]
+    direction = completed_trials[0].study.direction.name.lower()
+    reverse = direction == "maximize"
+    result_trial = sorted(
+        completed_trials,
+        key=lambda trial: (
+            float(trial.value),
+            trial.number,
+        ),
+        reverse=reverse,
+    )[0]
     return result_trial, completed_trials
 
 
@@ -361,16 +399,26 @@ def write_json(path, payload):
 
 
 def resolve_tuned_lr_param_name(hyperparameters):
-    if len(hyperparameters) != 1:
+    lr_params = [
+        param_name for param_name in hyperparameters
+        if param_name == "learning_rate" or param_name.endswith("_lr")
+    ]
+    if len(lr_params) != 1:
         raise ValueError(
-            "Experiment protocol allows tuning exactly one learning-rate hyperparameter. "
+            "Experiment protocol allows exactly one tuned learning-rate hyperparameter. "
             f"Found hyperparameters: {sorted(hyperparameters.keys())}"
         )
-    param_name = next(iter(hyperparameters.keys()))
-    if param_name != "learning_rate" and not param_name.endswith("_lr"):
+    param_name = lr_params[0]
+    if "scheduler" in hyperparameters:
+        scheduler_spec = hyperparameters["scheduler"]
+        if scheduler_spec.get("type") != "categorical":
+            raise ValueError("The scheduler hyperparameter must use categorical values.")
+    for extra_name in hyperparameters:
+        if extra_name in {param_name, "scheduler"}:
+            continue
         raise ValueError(
-            "Experiment protocol allows tuning only a learning-rate hyperparameter. "
-            f"Found hyperparameter: {param_name!r}"
+            "Experiment protocol allows tuning only the learning-rate hyperparameter "
+            f"plus an optional scheduler choice. Found hyperparameter: {extra_name!r}"
         )
     return param_name
 

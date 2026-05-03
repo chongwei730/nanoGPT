@@ -1,0 +1,140 @@
+full_candidate_count: 150
+lr_values:
+  - 1.0000000000000004e-06
+  - 1.264855216855296e-06
+  - 1.5998587196060576e-06
+  - 2.023589647725159e-06
+  - 2.559547922699537e-06
+  - 3.237457542817644e-06
+  - 4.094915062380424e-06
+  - 5.1794746792312166e-06
+  - 6.551285568595513e-06
+  - 8.286427728546846e-06
+  - 1.0481131341546854e-05
+  - 1.3257113655901106e-05
+  - 1.6768329368110093e-05
+  - 2.1209508879201913e-05
+  - 2.6826957952797298e-05
+  - 3.3932217718953265e-05
+  - 4.291934260128781e-05
+  - 5.4286754393238614e-05
+  - 6.866488450043e-05
+  - 8.685113737513537e-05
+  - 0.0001098541141987559
+  - 0.00013894954943731382
+  - 0.00017575106248547947
+  - 0.00022229964825261936
+  - 0.0002811768697974233
+  - 0.00035564803062231303
+  - 0.00044984326689694493
+  - 0.0005689866029018304
+  - 0.0007196856730011526
+  - 0.0009102981779915223
+  - 0.0011513953993264473
+  - 0.0014563484775012444
+  - 0.0018420699693267176
+  - 0.002329951810515373
+  - 0.0029470517025518136
+  - 0.0037275937203149452
+  - 0.004714866363457398
+  - 0.005963623316594646
+  - 0.007543120063354618
+  - 0.009540954763499953
+  - 0.012067926406393299
+  - 0.015264179671752344
+  - 0.019306977288832506
+  - 0.024420530945486504
+  - 0.030888435964774842
+  - 0.039069399370546196
+  - 0.04941713361323835
+  - 0.06250551925273982
+  - 0.07906043210907694
+  - 0.10000000000000006
+ordered_candidates:
+  - candidate_index: 136
+    candidate_rank: 0
+    params:
+      muon_lr: 0.039069399370546196
+      scheduler: inv_sqrt
+  - candidate_index: 93
+    candidate_rank: 1
+    params:
+      muon_lr: 0.0014563484775012444
+      scheduler: cosine_10pct
+  - candidate_index: 146
+    candidate_rank: 2
+    params:
+      muon_lr: 0.07906043210907694
+      scheduler: linear_10pct
+  - candidate_index: 149
+    candidate_rank: 3
+    params:
+      muon_lr: 0.10000000000000006
+      scheduler: linear_10pct
+  - candidate_index: 42
+    candidate_rank: 4
+    params:
+      muon_lr: 2.6826957952797298e-05
+      scheduler: cosine_10pct
+  - candidate_index: 85
+    candidate_rank: 5
+    params:
+      muon_lr: 0.0007196856730011526
+      scheduler: inv_sqrt
+  - candidate_index: 98
+    candidate_rank: 6
+    params:
+      muon_lr: 0.0018420699693267176
+      scheduler: linear_10pct
+  - candidate_index: 92
+    candidate_rank: 7
+    params:
+      muon_lr: 0.0011513953993264473
+      scheduler: linear_10pct
+  - candidate_index: 78
+    candidate_rank: 8
+    params:
+      muon_lr: 0.00044984326689694493
+      scheduler: cosine_10pct
+  - candidate_index: 100
+    candidate_rank: 9
+    params:
+      muon_lr: 0.002329951810515373
+      scheduler: inv_sqrt
+  - candidate_index: 52
+    candidate_rank: 10
+    params:
+      muon_lr: 5.4286754393238614e-05
+      scheduler: inv_sqrt
+  - candidate_index: 27
+    candidate_rank: 11
+    params:
+      muon_lr: 8.286427728546846e-06
+      scheduler: cosine_10pct
+  - candidate_index: 108
+    candidate_rank: 12
+    params:
+      muon_lr: 0.004714866363457398
+      scheduler: cosine_10pct
+  - candidate_index: 102
+    candidate_rank: 13
+    params:
+      muon_lr: 0.0029470517025518136
+      scheduler: cosine_10pct
+  - candidate_index: 16
+    candidate_rank: 14
+    params:
+      muon_lr: 3.237457542817644e-06
+      scheduler: inv_sqrt
+  - candidate_index: 129
+    candidate_rank: 15
+    params:
+      muon_lr: 0.024420530945486504
+      scheduler: cosine_10pct
+sample_seed: 1337
+sample_size: 16
+scheduler_values:
+  - cosine_10pct
+  - inv_sqrt
+  - linear_10pct
+tuned_param_name: muon_lr

@@ -73,7 +73,7 @@ import sys
 
 total_iters = int(sys.argv[1])
 initial_trials = int(sys.argv[2])
-reduction_factor = 4
+reduction_factor = 2
 num_rungs = 1
 active_trials = initial_trials
 while active_trials > 1:
@@ -139,7 +139,10 @@ fixed_args:
 hyperparameters:
   learning_rate:
     type: log_uniform
-    range: [1.0e-5, 1.0e-3]
+    range: [1.0e-6, 1.0e-3]
+  scheduler:
+    type: categorical
+    values: [cosine_10pct, inv_sqrt, linear_10pct]
 
 task:
   train_metric: train_loss

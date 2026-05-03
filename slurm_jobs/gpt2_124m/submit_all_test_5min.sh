@@ -12,9 +12,6 @@ declare -a JOB_SCRIPTS=(
   "muon/num_trials_8.sh"
   # "muon/num_trials_12.sh"
   # "muon/num_trials_16.sh"
-  "schedulefree_adam/num_trials_8.sh"
-  # "schedulefree_adam/num_trials_12.sh"
-  # "schedulefree_adam/num_trials_16.sh"
   "line_search.sh"
   "line_search_muon.sh"
 )

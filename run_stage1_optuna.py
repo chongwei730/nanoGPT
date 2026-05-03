@@ -2,6 +2,7 @@ import argparse
 import json
 import math
 import os
+import random
 import shutil
 import time
 from datetime import datetime
@@ -30,8 +31,8 @@ def parse_args():
     parser.add_argument(
         "--reduction-factor",
         type=int,
-        default=4,
-        help="Successive halving reduction factor. Defaults to 4.",
+        default=2,
+        help="Successive halving reduction factor. Defaults to 2.",
     )
     parser.add_argument(
         "--num-iterations-per-trial",
@@ -55,6 +56,20 @@ def ensure_dir(path):
 def write_json(path, payload):
     with open(path, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=2, sort_keys=True)
+
+
+def write_yaml(path, payload):
+    with open(path, "w", encoding="utf-8") as f:
+        yaml.safe_dump(payload, f, sort_keys=False)
+
+
+def read_yaml(path):
+    with open(path, "r", encoding="utf-8") as f:
+        return yaml.safe_load(f)
+
+
+def repo_config_root():
+    return os.path.abspath("config")
 
 
 def read_json(path):
@@ -131,7 +146,7 @@ def rung_iteration_budgets(total_iters, num_levels, reduction_factor):
 
 def copy_if_exists(src, dst):
     if src and os.path.exists(src):
-        shutil.copy2(src, dst)
+        shutil.copyfile(src, dst)
         return True
     return False
 
@@ -151,13 +166,185 @@ def snapshot_trial_artifacts(rung_root, trial_state):
     }
 
 
-def sample_trial(study, hyperparameters):
-    trial = study.ask()
-    params = {
-        name: run_optuna_experiment.suggest_value(trial, name, spec)
-        for name, spec in hyperparameters.items()
+def build_discrete_lr_values(spec, default_num_choices=50):
+    spec_type = spec["type"]
+    if spec_type == "discrete":
+        values = list(spec.get("values", []))
+        if values:
+            return [float(value) for value in values]
+        num_choices = int(spec.get("num_choices", default_num_choices))
+        scale = spec.get("scale", "linear")
+    elif spec_type in {"log_uniform", "uniform"}:
+        num_choices = int(spec.get("num_choices", default_num_choices))
+        scale = "log" if spec_type == "log_uniform" else "linear"
+    else:
+        raise ValueError(
+            "Serial halving candidate construction requires a learning-rate hyperparameter "
+            f"with type in {{'log_uniform', 'uniform', 'discrete'}}, got {spec_type!r}."
+        )
+
+    if num_choices < 1:
+        raise ValueError("Discrete learning-rate construction requires num_choices >= 1.")
+    low, high = spec["range"]
+    if num_choices == 1:
+        return [float(low)]
+    if scale == "log":
+        log_low = math.log(float(low))
+        log_high = math.log(float(high))
+        return [
+            math.exp(log_low + (log_high - log_low) * index / float(num_choices - 1))
+            for index in range(num_choices)
+        ]
+    return [
+        float(low) + (float(high) - float(low)) * index / float(num_choices - 1)
+        for index in range(num_choices)
+    ]
+
+
+def build_ordered_trial_candidates(hyperparameters):
+    tuned_param_name = run_optuna_experiment.resolve_tuned_lr_param_name(hyperparameters)
+    lr_values = build_discrete_lr_values(hyperparameters[tuned_param_name], default_num_choices=50)
+    scheduler_values = ["cosine_10pct"]
+    if "scheduler" in hyperparameters:
+        scheduler_spec = hyperparameters["scheduler"]
+        if scheduler_spec.get("type") != "categorical":
+            raise ValueError("Scheduler hyperparameter must have type 'categorical'.")
+        scheduler_values = list(scheduler_spec.get("values", []))
+        if not scheduler_values:
+            raise ValueError("Scheduler hyperparameter must define at least one categorical value.")
+
+    full_candidates = []
+    for lr_value in lr_values:
+        for scheduler_value in scheduler_values:
+            params = {tuned_param_name: float(lr_value)}
+            if "scheduler" in hyperparameters:
+                params["scheduler"] = scheduler_value
+            full_candidates.append(params)
+
+    sample_size = min(16, len(full_candidates))
+    sample_seed = 1337
+    sampled_indices = random.Random(sample_seed).sample(range(len(full_candidates)), sample_size)
+    ordered_candidates = []
+    for candidate_rank, candidate_index in enumerate(sampled_indices):
+        ordered_candidates.append(
+            {
+                "candidate_rank": int(candidate_rank),
+                "candidate_index": int(candidate_index),
+                "params": dict(full_candidates[candidate_index]),
+            }
+        )
+
+    return {
+        "tuned_param_name": tuned_param_name,
+        "lr_values": [float(value) for value in lr_values],
+        "scheduler_values": scheduler_values,
+        "full_candidate_count": len(full_candidates),
+        "sample_size": sample_size,
+        "sample_seed": sample_seed,
+        "ordered_candidates": ordered_candidates,
     }
-    return trial, params
+
+
+def validate_candidate_plan(candidate_plan, source_name):
+    required_keys = {
+        "tuned_param_name",
+        "lr_values",
+        "scheduler_values",
+        "full_candidate_count",
+        "sample_size",
+        "sample_seed",
+        "ordered_candidates",
+    }
+    missing = sorted(required_keys.difference(candidate_plan.keys()))
+    if missing:
+        raise ValueError(
+            f"{source_name} is missing required keys: "
+            f"{missing}"
+        )
+    return candidate_plan
+
+
+def canonical_fixed_candidate_pool(payload):
+    if payload is None:
+        return None
+    selected_candidate_order = payload.get("selected_candidate_order")
+    if selected_candidate_order is None:
+        selected_candidate_order = payload.get("ordered_candidates")
+    if selected_candidate_order is None:
+        raise ValueError(
+            "Fixed candidate pool payload must define either "
+            "'selected_candidate_order' or 'ordered_candidates'."
+        )
+    return {
+        "tuned_param_name": payload["tuned_param_name"],
+        "lr_values": payload["lr_values"],
+        "scheduler_values": payload["scheduler_values"],
+        "full_candidate_count": int(payload["full_candidate_count"]),
+        "sample_size": int(payload["sample_size"]),
+        "sample_seed": int(payload["sample_seed"]),
+        "selected_candidate_order": selected_candidate_order,
+    }
+
+
+def default_candidate_plan_config_path(config_path):
+    config_stem = os.path.splitext(os.path.basename(config_path))[0]
+    return os.path.join(repo_config_root(), "fixed_candidate_pools", f"{config_stem}.yaml")
+
+
+def resolve_candidate_plan_config_path(config_path, config):
+    serial_halving_cfg = config.get("serial_halving", {})
+    configured_path = serial_halving_cfg.get("fixed_candidate_pool_config", "")
+    if configured_path:
+        if os.path.isabs(configured_path):
+            return configured_path
+        return os.path.abspath(os.path.join(repo_config_root(), configured_path))
+    return os.path.abspath(default_candidate_plan_config_path(config_path))
+
+
+def load_persisted_candidate_plan(config_path, config):
+    candidate_plan_config_path = resolve_candidate_plan_config_path(config_path, config)
+    if os.path.exists(candidate_plan_config_path):
+        payload = read_yaml(candidate_plan_config_path)
+        if not isinstance(payload, dict):
+            raise ValueError(
+                f"Candidate plan config must be a mapping: {candidate_plan_config_path}"
+            )
+        return validate_candidate_plan(payload, candidate_plan_config_path), candidate_plan_config_path
+
+    serial_halving_cfg = config.get("serial_halving", {})
+    embedded_candidate_plan = serial_halving_cfg.get("fixed_candidate_pool")
+    if embedded_candidate_plan:
+        return (
+            validate_candidate_plan(embedded_candidate_plan, "serial_halving.fixed_candidate_pool"),
+            candidate_plan_config_path,
+        )
+    return None, candidate_plan_config_path
+
+
+def persist_candidate_plan_if_missing(config_path, config, candidate_plan):
+    persisted_candidate_plan, candidate_plan_config_path = load_persisted_candidate_plan(config_path, config)
+    if persisted_candidate_plan is not None:
+        return
+
+    serial_halving_cfg = config.setdefault("serial_halving", {})
+    relative_candidate_plan_path = os.path.relpath(candidate_plan_config_path, repo_config_root())
+    serial_halving_cfg["fixed_candidate_pool_config"] = relative_candidate_plan_path
+    serial_halving_cfg.pop("fixed_candidate_pool", None)
+    write_yaml(config_path, config)
+    ensure_dir(os.path.dirname(candidate_plan_config_path))
+    write_yaml(candidate_plan_config_path, candidate_plan)
+    print(
+        f"[halving] wrote fixed candidate pool config: {candidate_plan_config_path}"
+    )
+
+
+def get_or_create_persisted_candidate_plan(config_path, config):
+    persisted, _ = load_persisted_candidate_plan(config_path, config)
+    if persisted is not None:
+        return persisted
+    candidate_plan = build_ordered_trial_candidates(config["hyperparameters"])
+    persist_candidate_plan_if_missing(config_path, config, candidate_plan)
+    return candidate_plan
 
 
 def objective_value_from_summary(task, summary):
@@ -168,6 +355,25 @@ def objective_value_from_summary(task, summary):
 
 def metric_sort_key(metric_mode, value):
     return value if metric_mode == "min" else -value
+
+
+def choose_best_trial(trials, metric_mode):
+    if not trials:
+        raise ValueError("Expected at least one trial to choose from.")
+    eligible_trials = [
+        trial for trial in trials
+        if trial.get("train_objective_value") is not None
+    ]
+    if not eligible_trials:
+        raise ValueError("No completed trials are available for selection.")
+    ranked = sorted(
+        eligible_trials,
+        key=lambda trial: (
+            metric_sort_key(metric_mode, trial["train_objective_value"]),
+            trial["trial_number"],
+        ),
+    )
+    return ranked[0]
 
 
 def level_records_for_active_trials(active_trials, rung_index):
@@ -223,6 +429,7 @@ def public_result_from_state(state):
             "initial_trial_count": int(state["initial_trial_count"]),
             "requested_num_trials": int(state["requested_num_trials"]),
             "rung_target_iters": state["rung_budgets"],
+            "fixed_candidate_pool": state["fixed_candidate_pool"],
         },
         "completed_rungs": state["completed_rungs"],
     }
@@ -237,22 +444,23 @@ def write_public_result(run_root, state):
 
 def initialize_controller_state(run_root, args, config, num_rungs, rung_budgets, initial_trial_count, reduction_factor):
     run_root = os.path.abspath(run_root)
-    direction = "minimize" if config["task"]["metric_mode"] == "min" else "maximize"
-    study = run_optuna_experiment.optuna.create_study(
-        direction=direction,
-        sampler=run_optuna_experiment.optuna.samplers.TPESampler(),
-        pruner=run_optuna_experiment.optuna.pruners.NopPruner(),
-    )
+    candidate_plan = get_or_create_persisted_candidate_plan(args.config, config)
+    if initial_trial_count > int(candidate_plan["sample_size"]):
+        raise ValueError(
+            f"--num-trials={initial_trial_count} exceeds the fixed sampled candidate count "
+            f"of {candidate_plan['sample_size']}."
+        )
     shared_trials_root = ensure_dir(os.path.join(run_root, "shared_trials"))
     trials = []
-    for _ in range(initial_trial_count):
-        sampled_trial, sampled_params = sample_trial(study, config["hyperparameters"])
-        trial_number = int(sampled_trial.number)
+    for candidate in candidate_plan["ordered_candidates"][:initial_trial_count]:
+        sampled_params = dict(candidate["params"])
+        trial_number = int(candidate["candidate_rank"])
         trial_id = trial_id_from_number(trial_number)
         trial_dir = ensure_dir(os.path.join(shared_trials_root, trial_id))
         trials.append(
             {
                 "trial_number": trial_number,
+                "candidate_index": int(candidate["candidate_index"]),
                 "trial_id": trial_id,
                 "params": sampled_params,
                 "trial_dir": trial_dir,
@@ -282,6 +490,7 @@ def initialize_controller_state(run_root, args, config, num_rungs, rung_budgets,
         "reduction_factor": int(reduction_factor),
         "initial_trial_count": int(initial_trial_count),
         "requested_num_trials": int(initial_trial_count),
+        "fixed_candidate_pool": canonical_fixed_candidate_pool(candidate_plan),
         "next_rung_index": 0,
         "active_trial_ids": [trial["trial_id"] for trial in sorted(trials, key=lambda trial: trial["trial_number"])],
         "trials": trials,
@@ -291,6 +500,7 @@ def initialize_controller_state(run_root, args, config, num_rungs, rung_budgets,
 
 
 def load_or_initialize_controller_state(run_root, args, config, num_rungs, rung_budgets, initial_trial_count, reduction_factor):
+    candidate_plan = get_or_create_persisted_candidate_plan(args.config, config)
     state_path = controller_state_path(run_root)
     if os.path.exists(state_path):
         state = read_json(state_path)
@@ -312,6 +522,11 @@ def load_or_initialize_controller_state(run_root, args, config, num_rungs, rung_
             raise ValueError(
                 f"Reduction factor mismatch for resumed run: current={reduction_factor} "
                 f"saved={state['reduction_factor']}"
+            )
+        if canonical_fixed_candidate_pool(state.get("fixed_candidate_pool")) != canonical_fixed_candidate_pool(candidate_plan):
+            raise ValueError(
+                "Persisted fixed candidate pool in the config does not match the saved "
+                "controller state for this run."
             )
         print(
             f"[halving] resuming run from {run_root}: "
@@ -412,8 +627,8 @@ def run_trial_rung(config, rung_index, target_iters, trial_state, rung_root, all
     return rung_record
 
 
-def choose_selected_trial(active_trials):
-    return sorted(active_trials, key=lambda trial: trial["trial_number"])[-1]
+def choose_selected_trial(active_trials, metric_mode):
+    return choose_best_trial(active_trials, metric_mode)
 
 
 def write_selected_trial_artifacts(rung_root, selected_record):
@@ -440,12 +655,13 @@ def write_rung_result(
     rung_root,
     trial_records,
     active_trials,
+    selection_trials,
     pruned_count,
     total_running_time_hours,
 ):
     experiment = config["experiment"]
     task = config["task"]
-    selected_trial = choose_selected_trial(active_trials)
+    selected_trial = choose_selected_trial(selection_trials, task["metric_mode"])
     selected_record = selected_trial["last_level_record"]
     selected_params = selected_trial["params"]
     config_snapshot_path = os.path.join(rung_root, "resolved_config.yaml")
@@ -484,6 +700,7 @@ def write_rung_result(
         "tuned_hyperparameter_name": tuned_param_name,
         "best_hyperparameter_value": float(selected_params[tuned_param_name]),
         "best_learning_rate": float(selected_params[tuned_param_name]),
+        "best_scheduler": selected_params.get("scheduler", ""),
         "best_value": selected_record["train_objective_value"],
         "best_train_value": selected_record["train_objective_value"],
         "best_test_value": selected_record["test_objective_value"],
@@ -552,6 +769,8 @@ def main():
     initial_trial_count = int(args.num_trials) if args.num_trials is not None else 1
     if initial_trial_count < 1:
         raise ValueError("--num-trials must be >= 1.")
+    if initial_trial_count & (initial_trial_count - 1):
+        raise ValueError("--num-trials must be a power of 2 for the fixed monotone budget protocol.")
     num_rungs = inferred_rung_count(
         initial_trial_count=initial_trial_count,
         reduction_factor=reduction_factor,
@@ -659,6 +878,7 @@ def main():
             rung_root=rung_root,
             trial_records=trial_records,
             active_trials=active_trials_from_state(state),
+            selection_trials=state["trials"],
             pruned_count=pruned_count,
             total_running_time_hours=total_running_time_hours,
         )

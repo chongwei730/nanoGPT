@@ -2,7 +2,7 @@ experiment:
   name: llama1b_muon_lr_search
   train_script: train_llama_muon.py
   train_config: config/train_llama_1b.py
-  output_root: /scratch.global/chen8596/experiment_runs
+  output_root: /scratch.global/chen8596/experiment_runs_modified
   target_family: LLaMA
   target_dataset: C4
   target_model_size: 1B
@@ -28,6 +28,9 @@ hyperparameters:
   muon_lr:
     type: log_uniform
     range: [1.0e-6, 1.0e-1]
+  scheduler:
+    type: categorical
+    values: [cosine_10pct, inv_sqrt, linear_10pct]
 
 task:
   train_metric: train_loss
@@ -47,3 +50,6 @@ optuna:
 
 checkpoint:
   save_last: true
+
+serial_halving:
+  fixed_candidate_pool_config: fixed_candidate_pools/optuna_muon_llama130m.yaml

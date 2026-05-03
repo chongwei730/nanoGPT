@@ -46,7 +46,7 @@ sweeps:
       learning_rate: 6.0e-4
 
   - name: linesearch_muon_c1
-    train_script: train_linesearch_llama_muon_stream.py
+    train_script: train_linesearch_llama_muon.py
     sweep_param: linesearch_c1
     values: *linesearch_muon_c1_values
     extra_overrides:

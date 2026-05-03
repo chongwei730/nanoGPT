@@ -60,6 +60,8 @@ decay_lr = True
 warmup_iters = 100
 lr_decay_iters = 5000
 min_lr = 6e-5
+scheduler = "cosine_10pct"
+scheduler_decay_floor_ratio = 0.1
 # DDP settings
 backend = "nccl"
 # system
@@ -261,12 +263,22 @@ def estimate_loss():
 def get_lr(it):
     if it < warmup_iters:
         return learning_rate * (it + 1) / (warmup_iters + 1)
+    scheduler_floor_lr = learning_rate * scheduler_decay_floor_ratio
+    if scheduler in {"inverse_square_root", "inv_sqrt"}:
+        return learning_rate * math.sqrt(float(warmup_iters + 1) / float(max(it + 1, warmup_iters + 1)))
+    if lr_decay_iters <= warmup_iters:
+        return scheduler_floor_lr
     if it > lr_decay_iters:
-        return min_lr
+        return scheduler_floor_lr
     decay_ratio = (it - warmup_iters) / (lr_decay_iters - warmup_iters)
     assert 0 <= decay_ratio <= 1
-    coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))
-    return min_lr + coeff * (learning_rate - min_lr)
+    if scheduler in {"cosine", "cosine_10pct"}:
+        coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))
+    elif scheduler in {"linear", "linear_10pct"}:
+        coeff = 1.0 - decay_ratio
+    else:
+        raise ValueError(f"Unsupported scheduler={scheduler!r}")
+    return scheduler_floor_lr + coeff * (learning_rate - scheduler_floor_lr)
 
 
 def save_checkpoint(path):
@@ -284,7 +296,7 @@ def save_checkpoint(path):
     torch.save(checkpoint_payload, path)
 
 
-def write_experiment_summary(termination_reason, elapsed_hours):
+def write_experiment_summary(termination_reason, forward_backward_hours, wall_clock_hours):
     if not experiment_summary_path or not master_process:
         return
     summary = {
@@ -298,12 +310,13 @@ def write_experiment_summary(termination_reason, elapsed_hours):
         "best_val_loss": float(best_val_loss),
         "iter_num": int(iter_num),
         "learning_rate": float(learning_rate),
+        "scheduler": scheduler,
         "metric_mode": experiment_metric_mode,
-        "wall_clock_hours": float(elapsed_hours),
-        "forward_backward_hours": float(elapsed_hours),
+        "wall_clock_hours": float(wall_clock_hours),
+        "forward_backward_hours": float(forward_backward_hours),
         "forward_hours": float(forward_seconds / 3600.0),
         "backward_hours": float(backward_seconds / 3600.0),
-        "elapsed_wall_clock_hours": float((time.time() - train_start_time) / 3600.0),
+        "elapsed_wall_clock_hours": float(wall_clock_hours),
         "termination_reason": termination_reason,
     }
     with open(experiment_summary_path, "w", encoding="utf-8") as f:
@@ -414,7 +427,8 @@ if master_process and save_last_checkpoint and iter_num > 0:
     save_checkpoint(os.path.join(out_dir, "ckpt_last.pt"))
 write_experiment_summary(
     termination_reason=termination_reason,
-    elapsed_hours=forward_backward_seconds / 3600.0,
+    forward_backward_hours=forward_backward_seconds / 3600.0,
+    wall_clock_hours=(time.time() - train_start_time) / 3600.0,
 )
 if ddp:
     destroy_process_group()

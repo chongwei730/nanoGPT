@@ -3,20 +3,17 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PARTITIONS="a100-4,apollo_agate"
+PARTITIONS="saffo-a100"
 
 declare -a JOB_SCRIPTS=(
+  "cosine/num_trials_4.sh"
   "cosine/num_trials_8.sh"
-  "cosine/num_trials_12.sh"
   "cosine/num_trials_16.sh"
+  "muon/num_trials_4.sh"
   "muon/num_trials_8.sh"
-  "muon/num_trials_12.sh"
   "muon/num_trials_16.sh"
-  "schedulefree_adam/num_trials_8.sh"
-  "schedulefree_adam/num_trials_12.sh"
-  "schedulefree_adam/num_trials_16.sh"
-  "line_search.sh"
-  "line_search_muon.sh"
+  # "line_search.sh"
+  # "line_search_muon.sh"
 )
 
 for rel_path in "${JOB_SCRIPTS[@]}"; do

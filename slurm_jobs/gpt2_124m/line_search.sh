@@ -4,33 +4,31 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=128G
-#SBATCH --account=jinzn
+#SBATCH --account=ssafo
 #SBATCH --gres=gpu:4
-#SBATCH -p a100-4,apollo_agate
-#SBATCH --chdir=/users/9/chen8596/nanoGPT
-#SBATCH --output=/users/9/chen8596/nanoGPT/exp_log/gpt124m_linesearch_%A_%a.out
-#SBATCH --error=/users/9/chen8596/nanoGPT/exp_log/gpt124m_linesearch_%A_%a.err
-
+#SBATCH -p saffo-a100
+#SBATCH --chdir=/scratch.global/zhan9381/nanoGPT
+#SBATCH --output=/scratch.global/zhan9381/nanoGPT/exp_log/gpt2_124m_line_search_%A_%a.out
+#SBATCH --error=/scratch.global/zhan9381/nanoGPT/exp_log/gpt2_124m_line_search_%A_%a.err
 
 set -euo pipefail
 
-REPO_ROOT="/users/9/chen8596/nanoGPT"
-CONDA_SH="/users/9/chen8596/miniconda3/etc/profile.d/conda.sh"
+REPO_ROOT="/scratch.global/zhan9381/nanoGPT"
+VENV_ACTIVATE="${REPO_ROOT}/.venv/bin/activate"
 
 mkdir -p "${REPO_ROOT}/exp_log/slurm"
 cd "${REPO_ROOT}"
 
-if [ ! -f "${CONDA_SH}" ]; then
-  echo "Missing Conda init script at ${CONDA_SH}" >&2
+if [ ! -f "${VENV_ACTIVATE}" ]; then
+  echo "Missing venv activate script at ${VENV_ACTIVATE}" >&2
   exit 127
 fi
-source "${CONDA_SH}"
-conda activate nanogpt
+source "${VENV_ACTIVATE}"
 echo "Python: $(command -v python)"
 python --version
 
 MAX_ITERS="${MAX_ITERS:-5200}"
-RUN_ROOT="/scratch.global/chen8596/experiment_runs/gpt124m_line_search_stage2_maxiters_${MAX_ITERS}"
+RUN_ROOT="/scratch.global/chen8596/experiment_runs_modified/gpt124m_line_search_stage2_maxiters_${MAX_ITERS}"
 
 python run_linesearch_stage2.py \
   --run-root "$RUN_ROOT" \

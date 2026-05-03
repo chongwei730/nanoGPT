@@ -24,3 +24,4 @@ data/
 paper/*
 doc/*
 .claude/
+.venv/

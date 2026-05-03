@@ -61,7 +61,7 @@ max_iters = 5000
 weight_decay = 1e-1
 beta1 = 0.9
 beta2 = 0.95
-grad_clip = 0.0
+grad_clip = 1.0
 # learning rate decay settings
 decay_lr = True
 warmup_iters = 100

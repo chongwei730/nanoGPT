@@ -295,7 +295,7 @@ def main():
     args = parse_args()
     cfg = load_config(args.config)
     output_root = ensure_dir(cfg["output_root"])
-    shutil.copy2(args.config, os.path.join(output_root, "sweep_config.yaml"))
+    shutil.copyfile(args.config, os.path.join(output_root, "sweep_config.yaml"))
 
     defaults = cfg.get("defaults", {}) or {}
     launch = cfg.get("launch", {}) or {}

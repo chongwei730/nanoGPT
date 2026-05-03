@@ -17,7 +17,7 @@ def parse_args():
     )
     parser.add_argument(
         "--experiment-root",
-        default="/scratch.global/chen8596/experiment_runs",
+        default="/scratch.global/chen8596/experiment_runs_modified",
         help="Experiment output root used when --input is omitted.",
     )
     parser.add_argument("--output", default="", help="Optional output path for the LaTeX table")
@@ -198,7 +198,7 @@ def is_linesearch_method(method):
 def collect_body_methods(entries, explicit_methods):
     if explicit_methods:
         return [method for method in explicit_methods if not is_linesearch_method(method)]
-    preferred = ["cosine", "muon", "schedulefree_adam"]
+    preferred = ["cosine", "muon"]
     methods = []
     for entry in entries:
         method = entry["method"]

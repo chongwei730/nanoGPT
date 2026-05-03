@@ -58,7 +58,7 @@ def write_json(path, payload):
 
 def copy_if_exists(src, dst):
     if src and os.path.exists(src):
-        shutil.copy2(src, dst)
+        shutil.copyfile(src, dst)
         return True
     return False
 
@@ -67,8 +67,12 @@ def run_stage2(stage1_result_path, config_override):
     start_time = time.time()
     stage1_result = read_json(stage1_result_path)
     best_params = stage1_result.get("best_params") or {}
-    if "learning_rate" not in best_params:
-        raise ValueError(f"Stage-one result has no best learning_rate: {stage1_result_path}")
+    tuned_param_name = stage1_result.get("tuned_hyperparameter_name", "learning_rate")
+    if tuned_param_name not in best_params:
+        raise ValueError(
+            f"Stage-one result has no best value for tuned hyperparameter {tuned_param_name!r}: "
+            f"{stage1_result_path}"
+        )
 
     config_path = config_override or stage1_result["config_snapshot_path"]
     stage1_root = stage1_result["stage1_root"]
@@ -99,7 +103,7 @@ def run_stage2(stage1_result_path, config_override):
         run_dir=stage1_result.get("selected_trial_dir", ""),
     )
     if loaded_learning_rate is None:
-        loaded_learning_rate = float(best_params["learning_rate"])
+        loaded_learning_rate = float(best_params[tuned_param_name])
 
     stage2_result = {
         "schema_version": 1,

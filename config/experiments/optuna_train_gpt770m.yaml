@@ -2,7 +2,7 @@ experiment:
   name: gpt770m_lr_search
   train_script: train.py
   train_config: config/train_gpt2_770m_15b.py
-  output_root: /scratch.global/chen8596/experiment_runs
+  output_root: /scratch.global/chen8596/experiment_runs_modified
   target_family: GPT
   target_dataset: OpenWebText
   target_model_size: 770M
@@ -24,7 +24,10 @@ fixed_args:
 hyperparameters:
   learning_rate:
     type: log_uniform
-    range: [1.0e-5, 1.0e-2]
+    range: [1.0e-6, 1.0e-2]
+  scheduler:
+    type: categorical
+    values: [cosine_10pct, inv_sqrt, linear_10pct]
 
 task:
   train_metric: train_loss
@@ -44,3 +47,6 @@ optuna:
 
 checkpoint:
   save_last: true
+
+serial_halving:
+  fixed_candidate_pool_config: fixed_candidate_pools/optuna_train_llama130m.yaml

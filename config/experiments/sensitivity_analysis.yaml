@@ -1,5 +1,5 @@
 seed: 42
-output_root: /scratch.global/chen8596/sensitivity_analysis
+output_root: /scratch.global/zhan9381/nanoGPT/sensitivity_analysis
 
 launch:
   mode: torchrun

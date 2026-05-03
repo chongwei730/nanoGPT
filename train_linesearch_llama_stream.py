@@ -93,10 +93,6 @@ stop_at_eval_boundary = False
 config_keys = [k for k, v in globals().items() if not k.startswith("_") and isinstance(v, (int, float, bool, str))]
 exec(open("configurator.py").read())
 config = {k: globals()[k] for k in config_keys}
-always_save_checkpoint = False
-save_last_checkpoint = False
-config["always_save_checkpoint"] = False
-config["save_last_checkpoint"] = False
 linesearch_interval = max(1, int(max_iters * 0.1))
 config["linesearch_interval"] = linesearch_interval
 # -----------------------------------------------------------------------------
@@ -294,7 +290,7 @@ def save_checkpoint(path):
     torch.save(checkpoint_payload, path)
 
 
-def write_experiment_summary(termination_reason, elapsed_hours):
+def write_experiment_summary(termination_reason, forward_backward_hours, wall_clock_hours):
     if not experiment_summary_path or not master_process:
         return
     summary = {
@@ -309,18 +305,18 @@ def write_experiment_summary(termination_reason, elapsed_hours):
         "iter_num": int(iter_num),
         "learning_rate": float(optimizer.param_groups[0]["lr"]),
         "metric_mode": experiment_metric_mode,
-        "wall_clock_hours": float(elapsed_hours),
-        "forward_backward_hours": float(elapsed_hours),
+        "wall_clock_hours": float(wall_clock_hours),
+        "forward_backward_hours": float(forward_backward_hours),
         "forward_hours": float(forward_seconds / 3600.0),
         "backward_hours": float(backward_seconds / 3600.0),
-        "elapsed_wall_clock_hours": float((time.time() - train_start_time) / 3600.0),
+        "elapsed_wall_clock_hours": float(wall_clock_hours),
         "termination_reason": termination_reason,
     }
     with open(experiment_summary_path, "w", encoding="utf-8") as f:
         json.dump(summary, f, indent=2, sort_keys=True)
 
 
-def append_experiment_record(step, train_loss, val_loss, wall_clock_hours):
+def append_experiment_record(step, train_loss, val_loss, forward_backward_hours, wall_clock_hours):
     if not experiment_records_path or not master_process:
         return
     record = {
@@ -330,6 +326,7 @@ def append_experiment_record(step, train_loss, val_loss, wall_clock_hours):
         "train_loss": float(train_loss),
         "val_loss": float(val_loss),
         "wall_clock_hours": float(wall_clock_hours),
+        "forward_backward_hours": float(forward_backward_hours),
         "learning_rate": float(optimizer.param_groups[0]["lr"]),
     }
     with open(experiment_records_path, "a", encoding="utf-8") as f:
@@ -430,7 +427,8 @@ while True:
                 step=iter_num,
                 train_loss=losses["train"].item(),
                 val_loss=losses["val"].item(),
-                wall_clock_hours=forward_backward_seconds / 3600.0,
+                forward_backward_hours=forward_backward_seconds / 3600.0,
+                wall_clock_hours=(time.time() - train_start_time) / 3600.0,
             )
             if losses["val"] < best_val_loss or always_save_checkpoint:
                 best_val_loss = losses["val"]
@@ -499,7 +497,8 @@ if master_process and save_last_checkpoint and iter_num > 0:
     save_checkpoint(os.path.join(out_dir, "ckpt_last.pt"))
 write_experiment_summary(
     termination_reason=termination_reason,
-    elapsed_hours=forward_backward_seconds / 3600.0,
+    forward_backward_hours=forward_backward_seconds / 3600.0,
+    wall_clock_hours=(time.time() - train_start_time) / 3600.0,
 )
 if ddp:
     destroy_process_group()

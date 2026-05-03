@@ -72,6 +72,8 @@ decay_lr = True # whether to decay the global lr multiplier
 warmup_iters = 100 # how many steps to warm up for
 lr_decay_iters = 10000 # should be ~= max_iters per Chinchilla
 min_lr = 0.1 # minimum lr multiplier
+scheduler = 'cosine_10pct'
+scheduler_decay_floor_ratio = 0.1
 # DDP settings
 backend = 'nccl' # 'nccl', 'gloo', etc.
 # system
@@ -296,19 +298,25 @@ def estimate_loss():
     model.train()
     return out
 
-# learning rate decay scheduler (cosine with warmup) for the global lr multiplier
 def get_lr(it):
-    # 1) linear warmup for warmup_iters steps
     if it < warmup_iters:
         return learning_rate * (it + 1) / (warmup_iters + 1)
-    # 2) if it > lr_decay_iters, return min learning rate
+    scheduler_floor_lr = learning_rate * scheduler_decay_floor_ratio
+    if scheduler in {'inverse_square_root', 'inv_sqrt'}:
+        return learning_rate * math.sqrt(float(warmup_iters + 1) / float(max(it + 1, warmup_iters + 1)))
+    if lr_decay_iters <= warmup_iters:
+        return scheduler_floor_lr
     if it > lr_decay_iters:
-        return min_lr
-    # 3) in between, use cosine decay down to min learning rate
+        return scheduler_floor_lr
     decay_ratio = (it - warmup_iters) / (lr_decay_iters - warmup_iters)
     assert 0 <= decay_ratio <= 1
-    coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio)) # coeff ranges 0..1
-    return min_lr + coeff * (learning_rate - min_lr)
+    if scheduler in {'cosine', 'cosine_10pct'}:
+        coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))
+    elif scheduler in {'linear', 'linear_10pct'}:
+        coeff = 1.0 - decay_ratio
+    else:
+        raise ValueError(f"Unsupported scheduler={scheduler!r}")
+    return scheduler_floor_lr + coeff * (learning_rate - scheduler_floor_lr)
 
 def save_checkpoint(path):
     checkpoint_payload = {
@@ -341,6 +349,7 @@ def write_experiment_summary(
         'best_val_loss': float(best_val_loss),
         'iter_num': int(iter_num),
         'learning_rate': float(learning_rate),
+        'scheduler': scheduler,
         'metric_mode': experiment_metric_mode,
         'wall_clock_hours': float(wall_clock_hours),
         'forward_backward_hours': float(forward_backward_hours),
