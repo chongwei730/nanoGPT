@@ -3,7 +3,7 @@ import argparse
 import json
 import re
 from collections import defaultdict
-# from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
 
 
@@ -13,7 +13,7 @@ def parse_args():
     )
     parser.add_argument(
         "--experiment-root",
-        default="/scratch.global/chen8596/experiment_runs_modified",
+        default="/scratch.global/chen8596/experiment_runs",
         help="Root directory containing experiment outputs.",
     )
     parser.add_argument(
@@ -41,7 +41,6 @@ def normalize_model_size(raw_size):
         return raw_size.strip()
     number, suffix = match.groups()
     return f"{number}{suffix.upper()}"
-
 
 def parse_size_overrides(items):
     overrides = {}
@@ -92,34 +91,75 @@ def is_linesearch_method(method):
     return method in {"linesearch_adam", "linesearch_muon"}
 
 
-def compute_trial_total_spent_time_hours(trial_dir):
-    records_path = Path(trial_dir) / "records.jsonl"
-    if not records_path.exists():
+def parse_timestamp(value):
+    if not value:
         return None
+    normalized = str(value).replace("Z", "+00:00")
+    try:
+        return datetime.fromisoformat(normalized)
+    except AttributeError:
+        pass
+    except ValueError:
+        pass
+    for pattern in ("%Y-%m-%dT%H:%M:%S.%f%z", "%Y-%m-%dT%H:%M:%S%z"):
+        try:
+            return datetime.strptime(normalized, pattern)
+        except ValueError:
+            continue
+    return None
 
-    total = 0.0
-    segment_max = None
-    previous = None
-    with records_path.open("r", encoding="utf-8") as handle:
-        for raw_line in handle:
-            line = raw_line.strip()
-            if not line:
-                continue
-            record = json.loads(line)
-            current = record.get("wall_clock_hours")
-            if current is None:
-                continue
-            current = float(current)
-            if previous is not None and current < previous:
-                if segment_max is not None:
-                    total += segment_max
-                segment_max = current
-            else:
-                segment_max = current if segment_max is None else max(segment_max, current)
-            previous = current
-    if segment_max is not None:
-        total += segment_max
-    return total if total > 0 else None
+
+def serial_total_time_hours(payload, result):
+    total_time = result.get("total_running_time_hours")
+    if total_time is None:
+        total_time = payload.get("total_running_time_hours")
+    if total_time is not None:
+        total_time = float(total_time)
+
+    created_at = parse_timestamp(payload.get("created_at"))
+    updated_at = parse_timestamp(payload.get("updated_at"))
+    if created_at is None or updated_at is None:
+        return total_time
+    timestamp_hours = max(0.0, (updated_at - created_at).total_seconds() / 3600.0)
+    if total_time is None:
+        return timestamp_hours
+    if timestamp_hours > 0 and total_time > timestamp_hours * 1.01:
+        return timestamp_hours
+    return total_time
+
+
+def infer_run_dir_from_source_path(source_path):
+    source_path = Path(source_path)
+    if source_path.name == "serial_halving_result.json":
+        return source_path.parent
+    if source_path.name == "summary.json" and source_path.parent.name == "final":
+        return source_path.parent.parent
+    return source_path.parent
+
+
+def infer_num_trials_from_run_dir(run_dir):
+    match = re.search(r"(?:^|_)num_trials_(\d+)(?:_|$)", Path(run_dir).name)
+    if not match:
+        return None
+    return int(match.group(1))
+
+
+def candidate_row_sort_key(item):
+    num_trials_setting = item.get("num_trials_setting")
+    return (
+        float("inf") if num_trials_setting is None else int(num_trials_setting),
+        float("inf") if item["total_time_hours"] is None else float(item["total_time_hours"]),
+        float("inf") if item["loss"] is None else float(item["loss"]),
+        item["source_path"],
+    )
+
+
+def candidate_selection_key(item):
+    return (
+        float("inf") if item["loss"] is None else float(item["loss"]),
+        float("inf") if item["total_time_hours"] is None else float(item["total_time_hours"]),
+        item["source_path"],
+    )
 
 
 def make_candidate(
@@ -127,10 +167,11 @@ def make_candidate(
     model_size,
     size_label,
     method,
-    tuning_time_hours,
+    total_time_hours,
     loss,
     wall_clock_hours,
-    total_spent_time_hours,
+    run_dir,
+    num_trials_setting,
     source_path,
     metadata,
 ):
@@ -139,10 +180,11 @@ def make_candidate(
         "model_size": model_size,
         "size_label": size_label,
         "method": method,
-        "tuning_time_hours": tuning_time_hours,
+        "total_time_hours": total_time_hours,
         "loss": loss,
         "wall_clock_hours": wall_clock_hours,
-        "total_spent_time_hours": total_spent_time_hours,
+        "run_dir": str(run_dir),
+        "num_trials_setting": num_trials_setting,
         "source_path": str(source_path),
         "metadata": metadata,
     }
@@ -151,6 +193,7 @@ def make_candidate(
 def collect_serial_halving_entries(experiment_root, size_overrides):
     candidates = []
     for result_path in sorted(experiment_root.glob("*/serial_halving_result.json")):
+        run_dir = infer_run_dir_from_source_path(result_path)
         payload = load_json(result_path)
         results = payload.get("results", [])
         if not results:
@@ -168,22 +211,22 @@ def collect_serial_halving_entries(experiment_root, size_overrides):
         )
         method = infer_method(experiment_name, train_script)
         size_label = size_overrides.get((family, model_size), model_size)
-        total_spent_time_hours = compute_trial_total_spent_time_hours(
-            result.get("selected_trial_dir", "")
-        )
+        total_time_hours = serial_total_time_hours(payload, result)
         candidates.append(
             make_candidate(
                 family=family,
                 model_size=model_size,
                 size_label=size_label,
                 method=method,
-                tuning_time_hours=result.get("total_running_time_hours"),
+                total_time_hours=total_time_hours,
                 loss=result.get("best_val_loss"),
                 wall_clock_hours=result.get("elapsed_wall_clock_hours"),
-                total_spent_time_hours=total_spent_time_hours,
+                run_dir=run_dir,
+                num_trials_setting=infer_num_trials_from_run_dir(run_dir),
                 source_path=result_path,
                 metadata={
                     "kind": "serial_halving",
+                    "run_dir": str(run_dir),
                     "result_path": result.get("result_path", ""),
                     "rung_index": result.get("rung_index"),
                     "rung_name": result.get("rung_name", ""),
@@ -201,6 +244,7 @@ def collect_linesearch_entries(experiment_root, size_overrides):
         if "/rung_" in str(summary_path):
             continue
 
+        run_dir = infer_run_dir_from_source_path(summary_path)
         summary = load_json(summary_path)
         experiment_name = summary.get("experiment_name", "")
         method = infer_method(experiment_name, summary.get("train_script", ""))
@@ -211,19 +255,22 @@ def collect_linesearch_entries(experiment_root, size_overrides):
         model_size = infer_model_size(experiment_name)
         size_label = size_overrides.get((family, model_size), model_size)
 
+        total_time_hours = summary.get("elapsed_wall_clock_hours")
         candidates.append(
             make_candidate(
                 family=family,
                 model_size=model_size,
                 size_label=size_label,
                 method=method,
-                tuning_time_hours=None,
+                total_time_hours=total_time_hours,
                 loss=summary.get("best_val_loss"),
                 wall_clock_hours=summary.get("elapsed_wall_clock_hours"),
-                total_spent_time_hours=summary.get("elapsed_wall_clock_hours"),
+                run_dir=run_dir,
+                num_trials_setting=infer_num_trials_from_run_dir(run_dir),
                 source_path=summary_path,
                 metadata={
                     "kind": "linesearch_final",
+                    "run_dir": str(run_dir),
                     "experiment_name": experiment_name,
                 },
             )
@@ -240,22 +287,8 @@ def aggregate_candidates(candidates):
     entries = []
     for key in sorted(grouped):
         family, model_size, method = key
-        rows = sorted(
-            grouped[key],
-            key=lambda item: (
-                float("inf") if item["tuning_time_hours"] is None else item["tuning_time_hours"],
-                float("inf") if item["loss"] is None else item["loss"],
-                item["source_path"],
-            ),
-        )
-        selected = min(
-            rows,
-            key=lambda item: (
-                float("inf") if item["loss"] is None else item["loss"],
-                float("inf") if item["tuning_time_hours"] is None else item["tuning_time_hours"],
-                item["source_path"],
-            ),
-        )
+        rows = sorted(grouped[key], key=candidate_row_sort_key)
+        selected = min(rows, key=candidate_selection_key)
         entries.append(
             {
                 "family": family,

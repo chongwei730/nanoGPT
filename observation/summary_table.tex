@@ -1,70 +1,32 @@
 \begin{table}[htbp]
 \centering
-\begin{tabular}{c|c|c|c}
+\begin{tabular}{c|c|c|c|c}
 \hline
-\textbf{LLAMA} & \multicolumn{3}{c}{60M} \\
-\hline
-
-\textbf{cosine} & Tuning time & Loss & Spent time \\
-\hline
-<<<<<<< HEAD
- & 1.30h & 4.0464 & 0.17h \\
-\hline
- & 2.90h & 3.4799 & 0.25h \\
-\hline
- & 3.54h & 3.4800 & 0.51h \\
-=======
- & 3.04h & 3.3416 & 1.14h \\
-\hline
- & 4.10h & 3.1917 & 1.13h \\
-\hline
- & 5.21h & 3.2151 & 1.13h \\
->>>>>>> origin/master
+\textbf{LLAMA} & \multicolumn{2}{c|}{60M} & \multicolumn{2}{c}{130M} \\
 \hline
 
-\textbf{muon} & Tuning time & Loss & Spent time \\
+\textbf{cosine} & Total time & Loss & Total time & Loss \\
 \hline
-<<<<<<< HEAD
- & 1.79h & 3.6511 & 0.24h \\
+ & 0.96h & 3.6827 & 2.84h & 3.2772 \\
 \hline
- & 5.09h & 3.4247 & 0.95h \\
+ & 1.29h & 3.8141 & 3.46h & 3.2805 \\
 \hline
- & 5.67h & 3.4229 & 0.66h \\
-=======
- & 3.12h & 3.5011 & 1.17h \\
-\hline
- & 4.27h & 3.3104 & 1.18h \\
-\hline
- & 5.35h & 3.2948 & 1.17h \\
->>>>>>> origin/master
+ & 1.86h & 3.4853 & 3.92h & 3.3197 \\
 \hline
 
-\textbf{schedulefree_adam} & Tuning time & Loss & Spent time \\
+\textbf{muon} & Total time & Loss & Total time & Loss \\
 \hline
-<<<<<<< HEAD
- & 2.26h & 4.8337 & 0.34h \\
+ & 0.88h & 3.5276 & 2.53h & 3.2217 \\
 \hline
- & 2.41h & 3.7139 & 0.29h \\
+ & 1.23h & 3.5281 & 3.50h & 3.2238 \\
 \hline
- & 2.54h & 5.1111 & 0.43h \\
-\hline
-
-\textbf{linesearch_adam} & Nah & 3.5386 & 1.10h \\
-\hline
-\textbf{linesearch_muon} & Nah & 3.4321 & 0.50h \\
-=======
- & 3.08h & 3.6482 & 1.15h \\
-\hline
- & 4.14h & 3.4747 & 1.14h \\
-\hline
- & 5.31h & 3.3815 & 1.14h \\
+ & 2.07h & 3.4113 & 3.97h & 3.2970 \\
 \hline
 
-\textbf{linesearch_adam} & Nah & 3.2109 & 1.24h \\
+\textbf{linesearch_adam} & 0.58h & 3.6806 &  &  \\
 \hline
-\textbf{linesearch_muon} & Nah & 3.2512 & 1.21h \\
->>>>>>> origin/master
+\textbf{linesearch_muon} & 0.70h & 3.4314 &  &  \\
 \hline
 \end{tabular}
-\caption{Comparison with tuning time, loss, and spent time}
+\caption{Comparison with total time and loss}
 \end{table}

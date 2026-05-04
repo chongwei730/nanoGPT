@@ -1,12 +1,12 @@
 #!/bin/bash
 #SBATCH --job-name=n16_llama350_muon
-#SBATCH --time=4-00:00:00
+#SBATCH --time=2-00:00:00
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=128G
 #SBATCH --account=ssafo
 #SBATCH --gres=gpu:4
-#SBATCH -p saffo-a100
+#SBATCH -p saffo-a100,apollo_agate
 #SBATCH --chdir=/scratch.global/zhan9381/nanoGPT
 #SBATCH --output=/scratch.global/zhan9381/nanoGPT/exp_log/llama_350m_muon_num_trials_16_%A_%a.out
 #SBATCH --error=/scratch.global/zhan9381/nanoGPT/exp_log/llama_350m_muon_num_trials_16_%A_%a.err
