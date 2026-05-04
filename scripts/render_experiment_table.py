@@ -19,7 +19,7 @@ def parse_args():
     )
     parser.add_argument(
         "--experiment-root",
-        default="/scratch.global/chen8596/experiment_runs_modified",
+        default="/scratch.global/chen8596/experiment_runs_last
         help="Experiment output root used when --input is omitted.",
     )
     parser.add_argument("--output", default="", help="Optional output path for the LaTeX table")

@@ -28,7 +28,7 @@ echo "Python: $(command -v python)"
 python --version
 
 MAX_ITERS="${MAX_ITERS:-59600}"
-RUN_ROOT="/scratch.global/chen8596/experiment_runs_modified/llama350m_line_search_stage2_maxiters_${MAX_ITERS}"
+RUN_ROOT="/scratch.global/chen8596/experiment_runs_lastma350m_line_search_stage2_maxiters_${MAX_ITERS}"
 
 python run_linesearch_stage2.py \
   --run-root "$RUN_ROOT" \

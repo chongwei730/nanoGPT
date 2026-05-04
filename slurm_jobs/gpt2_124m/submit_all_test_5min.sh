@@ -6,12 +6,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PARTITIONS="preempt-gpu,a100-8,a100-4,apollo_agate"
 
 declare -a JOB_SCRIPTS=(
-  "cosine/num_trials_8.sh"
-  # "cosine/num_trials_12.sh"
-  # "cosine/num_trials_16.sh"
-  "muon/num_trials_8.sh"
-  # "muon/num_trials_12.sh"
-  # "muon/num_trials_16.sh"
+  "cosine/level_1.sh"
+  "cosine/level_2.sh"
+  "cosine/level_3.sh"
+  "muon/level_1.sh"
+  "muon/level_2.sh"
+  "muon/level_3.sh"
   "line_search.sh"
   "line_search_muon.sh"
 )

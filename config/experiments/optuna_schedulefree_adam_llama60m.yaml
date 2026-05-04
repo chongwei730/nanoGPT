@@ -2,7 +2,7 @@ experiment:
   name: llama60m_schedulefree_adam_lr_search
   train_script: train_llama.py
   train_config: config/train_llama_60m.py
-  output_root: /scratch.global/chen8596/experiment_runs_modified
+  output_root: /scratch.global/chen8596/experiment_runs_last
   target_family: LLaMA
   target_dataset: C4
   target_model_size: 60M

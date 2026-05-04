@@ -6,12 +6,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PARTITIONS="saffo-a100"
 
 declare -a JOB_SCRIPTS=(
-  "cosine/num_trials_4.sh"
-  "cosine/num_trials_8.sh"
-  "cosine/num_trials_16.sh"
-  "muon/num_trials_4.sh"
-  "muon/num_trials_8.sh"
-  "muon/num_trials_16.sh"
+  "cosine/level_1.sh"
+  "cosine/level_2.sh"
+  "cosine/level_3.sh"
+  "muon/level_1.sh"
+  "muon/level_2.sh"
+  "muon/level_3.sh"
   "line_search.sh"
   "line_search_muon.sh"
 )

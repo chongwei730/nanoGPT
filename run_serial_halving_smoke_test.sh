@@ -5,19 +5,19 @@ cd "$(dirname "$0")"
 
 PYTHON_BIN="${PYTHON_BIN:-python3}"
 NPROC_PER_NODE="${NPROC_PER_NODE:-4}"
-SMOKE_ROOT="${SMOKE_ROOT:-$(pwd)/experiment_runs_smoke/serial_halving_multigpu_smoke}"
+SMOKE_ROOT="${SMOKE_ROOT:-$(pwd)/experiment_runs_smoke/tuning_batch_multigpu_smoke}"
 DATA_ROOT="${DATA_ROOT:-/scratch.global/chen8596/nanogpt_data}"
-DATASET_NAME="${DATASET_NAME:-tiny_openwebtext_serial_halving_smoke}"
+DATASET_NAME="${DATASET_NAME:-tiny_openwebtext_tuning_batch_smoke}"
 DATA_DIR="$DATA_ROOT/$DATASET_NAME"
 CONFIG_PATH="$SMOKE_ROOT/smoke_config.yaml"
 RUN_ROOT="$SMOKE_ROOT/run"
 GRAD_ACCUM_STEPS="${GRAD_ACCUM_STEPS:-$NPROC_PER_NODE}"
-NUM_TRIALS="${NUM_TRIALS:-16}"
+NUM_TRIALS="${NUM_TRIALS:-12}"
 MAX_ITERS="${MAX_ITERS:-20}"
 
-# Keep the smoke test small, but still exercise the real serial-halving flow:
-# multi-GPU launch, multiple trials, pruning between rungs, checkpoint-based resume,
-# per-rung snapshots, and final result promotion.
+# Keep the smoke test small, but still exercise the real fixed tuning-batch flow:
+# multi-GPU launch, 12 ordered candidates, three 4-trial batches, checkpoint-based
+# resume for each batch winner, and stage-compatible output promotion.
 MODEL_N_LAYER="${MODEL_N_LAYER:-2}"
 MODEL_N_HEAD="${MODEL_N_HEAD:-2}"
 MODEL_N_EMBD="${MODEL_N_EMBD:-32}"
@@ -35,13 +35,13 @@ if (( GRAD_ACCUM_STEPS % NPROC_PER_NODE != 0 )); then
   exit 1
 fi
 
-if (( NUM_TRIALS < 2 )); then
-  echo "NUM_TRIALS must be >= 2 so the smoke test can exercise pruning." >&2
+if (( NUM_TRIALS != 12 )); then
+  echo "NUM_TRIALS must be exactly 12 for the fixed tuning-batch protocol." >&2
   exit 1
 fi
 
-if (( MAX_ITERS < 2 )); then
-  echo "MAX_ITERS must be >= 2." >&2
+if (( MAX_ITERS < 4 )); then
+  echo "MAX_ITERS must be >= 4 so the quarter-budget tuning stage is meaningful." >&2
   exit 1
 fi
 
@@ -67,43 +67,17 @@ with open(dataset_dir / "meta.pkl", "wb") as f:
     pickle.dump({"vocab_size": vocab_size}, f)
 PY
 
-RUNG_BUDGETS="$("$PYTHON_BIN" - "$MAX_ITERS" "$NUM_TRIALS" <<'PY'
-import math
-import sys
+TUNING_ITERS="$(( (MAX_ITERS + 3) / 4 ))"
 
-total_iters = int(sys.argv[1])
-initial_trials = int(sys.argv[2])
-reduction_factor = 2
-num_rungs = 1
-active_trials = initial_trials
-while active_trials > 1:
-    active_trials = int(math.ceil(float(active_trials) / float(reduction_factor)))
-    num_rungs += 1
-budgets = []
-for index in range(num_rungs):
-    if index == num_rungs - 1:
-        budget = total_iters
-    else:
-        power = num_rungs - 1 - index
-        budget = int(math.ceil(float(total_iters) / (reduction_factor ** power)))
-    if budgets and budget <= budgets[-1]:
-        budget = min(total_iters, budgets[-1] + 1)
-    budgets.append(max(1, budget))
-budgets[-1] = total_iters
-print(" ".join(str(budget) for budget in budgets))
-PY
-)"
-FIRST_RUNG_ITERS="${RUNG_BUDGETS%% *}"
-
-if (( FIRST_RUNG_ITERS <= WARMUP_ITERS )); then
-  echo "First rung budget ($FIRST_RUNG_ITERS) must be greater than WARMUP_ITERS ($WARMUP_ITERS)." >&2
-  echo "Increase MAX_ITERS, increase NUM_TRIALS, or lower WARMUP_ITERS." >&2
+if (( TUNING_ITERS <= WARMUP_ITERS )); then
+  echo "TUNING_ITERS ($TUNING_ITERS) must be greater than WARMUP_ITERS ($WARMUP_ITERS)." >&2
+  echo "Increase MAX_ITERS or lower WARMUP_ITERS." >&2
   exit 1
 fi
 
 cat > "$CONFIG_PATH" <<YAML
 experiment:
-  name: serial_halving_multigpu_smoke
+  name: tuning_batch_multigpu_smoke
   train_script: train.py
   train_config: config/train_gpt2.py
   output_root: $SMOKE_ROOT
@@ -160,7 +134,7 @@ checkpoint:
   save_last: true
 YAML
 
-echo "Running serial successive halving smoke test"
+echo "Running fixed tuning-batch smoke test"
 echo "Dataset: $DATA_DIR"
 echo "Run root: $RUN_ROOT"
 echo "Config: $CONFIG_PATH"
@@ -169,7 +143,7 @@ echo "gradient_accumulation_steps: $GRAD_ACCUM_STEPS"
 echo "num_trials: $NUM_TRIALS"
 echo "max_iters: $MAX_ITERS"
 echo "warmup_iters: $WARMUP_ITERS"
-echo "rung budgets: $RUNG_BUDGETS"
+echo "tuning_iters: $TUNING_ITERS"
 
 "$PYTHON_BIN" run_stage1_optuna.py \
   "$CONFIG_PATH" \

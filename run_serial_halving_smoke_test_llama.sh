@@ -6,11 +6,11 @@ cd "$(dirname "$0")"
 PYTHON_BIN="${PYTHON_BIN:-python3}"
 NPROC_PER_NODE="${NPROC_PER_NODE:-4}"
 MODEL_SIZE="${MODEL_SIZE:-130m}"
-SMOKE_ROOT="${SMOKE_ROOT:-$(pwd)/experiment_runs_smoke/serial_halving_llama_${MODEL_SIZE}_smoke}"
+SMOKE_ROOT="${SMOKE_ROOT:-$(pwd)/experiment_runs_smoke/tuning_batch_llama_${MODEL_SIZE}_smoke}"
 RUN_ROOT="${RUN_ROOT:-$SMOKE_ROOT/run}"
 CONFIG_PATH="${CONFIG_PATH:-$SMOKE_ROOT/smoke_config.yaml}"
 
-NUM_TRIALS="${NUM_TRIALS:-8}"
+NUM_TRIALS="${NUM_TRIALS:-12}"
 MAX_ITERS="${MAX_ITERS:-20}"
 WARMUP_ITERS="${WARMUP_ITERS:-1}"
 GRAD_ACCUM_STEPS="${GRAD_ACCUM_STEPS:-$NPROC_PER_NODE}"
@@ -30,19 +30,19 @@ case "$MODEL_SIZE" in
     TRAIN_CONFIG="${TRAIN_CONFIG:-config/train_llama_60m.py}"
     LLAMA_CONFIG_PATH="${LLAMA_CONFIG_PATH:-llama_config/llama_60m.json}"
     TARGET_MODEL_SIZE="${TARGET_MODEL_SIZE:-60M}"
-    EXPERIMENT_NAME="${EXPERIMENT_NAME:-serial_halving_llama60m_smoke}"
+    EXPERIMENT_NAME="${EXPERIMENT_NAME:-tuning_batch_llama60m_smoke}"
     ;;
   130m)
     TRAIN_CONFIG="${TRAIN_CONFIG:-config/train_llama_130m.py}"
     LLAMA_CONFIG_PATH="${LLAMA_CONFIG_PATH:-llama_config/llama_130m.json}"
     TARGET_MODEL_SIZE="${TARGET_MODEL_SIZE:-130M}"
-    EXPERIMENT_NAME="${EXPERIMENT_NAME:-serial_halving_llama130m_smoke}"
+    EXPERIMENT_NAME="${EXPERIMENT_NAME:-tuning_batch_llama130m_smoke}"
     ;;
   350m)
     TRAIN_CONFIG="${TRAIN_CONFIG:-config/train_llama_350m.py}"
     LLAMA_CONFIG_PATH="${LLAMA_CONFIG_PATH:-llama_config/llama_350m.json}"
     TARGET_MODEL_SIZE="${TARGET_MODEL_SIZE:-350M}"
-    EXPERIMENT_NAME="${EXPERIMENT_NAME:-serial_halving_llama350m_smoke}"
+    EXPERIMENT_NAME="${EXPERIMENT_NAME:-tuning_batch_llama350m_smoke}"
     ;;
   *)
     echo "Unsupported MODEL_SIZE: $MODEL_SIZE. Use 60m, 130m, or 350m." >&2
@@ -60,13 +60,13 @@ if (( GRAD_ACCUM_STEPS % NPROC_PER_NODE != 0 )); then
   exit 1
 fi
 
-if (( NUM_TRIALS < 2 )); then
-  echo "NUM_TRIALS must be >= 2 so the smoke test can exercise pruning." >&2
+if (( NUM_TRIALS != 12 )); then
+  echo "NUM_TRIALS must be exactly 12 for the fixed tuning-batch protocol." >&2
   exit 1
 fi
 
-if (( MAX_ITERS < 2 )); then
-  echo "MAX_ITERS must be >= 2." >&2
+if (( MAX_ITERS < 4 )); then
+  echo "MAX_ITERS must be >= 4 so the quarter-budget tuning stage is meaningful." >&2
   exit 1
 fi
 
@@ -74,37 +74,11 @@ mkdir -p "$SMOKE_ROOT"
 rm -rf "$RUN_ROOT"
 mkdir -p "$RUN_ROOT"
 
-RUNG_BUDGETS="$("$PYTHON_BIN" - "$MAX_ITERS" "$NUM_TRIALS" <<'PY'
-import math
-import sys
+TUNING_ITERS="$(( (MAX_ITERS + 3) / 4 ))"
 
-total_iters = int(sys.argv[1])
-initial_trials = int(sys.argv[2])
-reduction_factor = 2
-num_rungs = 1
-active_trials = initial_trials
-while active_trials > 1:
-    active_trials = int(math.ceil(float(active_trials) / float(reduction_factor)))
-    num_rungs += 1
-budgets = []
-for index in range(num_rungs):
-    if index == num_rungs - 1:
-        budget = total_iters
-    else:
-        power = num_rungs - 1 - index
-        budget = int(math.ceil(float(total_iters) / (reduction_factor ** power)))
-    if budgets and budget <= budgets[-1]:
-        budget = min(total_iters, budgets[-1] + 1)
-    budgets.append(max(1, budget))
-budgets[-1] = total_iters
-print(" ".join(str(budget) for budget in budgets))
-PY
-)"
-FIRST_RUNG_ITERS="${RUNG_BUDGETS%% *}"
-
-if (( FIRST_RUNG_ITERS <= WARMUP_ITERS )); then
-  echo "First rung budget ($FIRST_RUNG_ITERS) must be greater than WARMUP_ITERS ($WARMUP_ITERS)." >&2
-  echo "Increase MAX_ITERS, increase NUM_TRIALS, or lower WARMUP_ITERS." >&2
+if (( TUNING_ITERS <= WARMUP_ITERS )); then
+  echo "TUNING_ITERS ($TUNING_ITERS) must be greater than WARMUP_ITERS ($WARMUP_ITERS)." >&2
+  echo "Increase MAX_ITERS or lower WARMUP_ITERS." >&2
   exit 1
 fi
 
@@ -170,7 +144,7 @@ checkpoint:
   save_last: true
 YAML
 
-echo "Running LLaMA serial successive halving smoke test"
+echo "Running LLaMA fixed tuning-batch smoke test"
 echo "Model size: $MODEL_SIZE"
 echo "Train config: $TRAIN_CONFIG"
 echo "LLaMA config: $LLAMA_CONFIG_PATH"
@@ -183,7 +157,7 @@ echo "batch_size: $BATCH_SIZE"
 echo "max_iters: $MAX_ITERS"
 echo "warmup_iters: $WARMUP_ITERS"
 echo "num_trials: $NUM_TRIALS"
-echo "rung budgets: $RUNG_BUDGETS"
+echo "tuning_iters: $TUNING_ITERS"
 echo
 
 "$PYTHON_BIN" run_stage1_optuna.py \
