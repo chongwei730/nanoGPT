@@ -28,7 +28,7 @@ echo "Python: $(command -v python)"
 python --version
 
 MAX_ITERS="${MAX_ITERS:-5200}"
-RUN_ROOT="/scratch.global/chen8596/experiment_runs_last124m_muon_lr_search_tuning_batch_level_1_maxiters_${MAX_ITERS}"
+RUN_ROOT="/scratch.global/chen8596/experiment_runs_last/124m_muon_lr_search_tuning_batch_level_1_maxiters_${MAX_ITERS}"
 echo "Launching or resuming tuning-batch level 1 run at $RUN_ROOT"
 
 python run_stage1_optuna.py config/experiments/optuna_muon_gpt124m.yaml \
